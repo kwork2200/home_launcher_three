@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "937138941672",
+    "project_id": "home-luncher-three",
+    "storage_bucket": "home-luncher-three.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:937138941672:android:5f80563bef142e385f635d",
+        "android_client_info": {
+          "package_name": "com.kayfahaarukku.homelauncherthree"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDeBdzpE_8hA-rRNlwjHnkhYhuh6qZUWYs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

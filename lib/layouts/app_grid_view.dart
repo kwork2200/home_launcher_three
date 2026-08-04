@@ -1,0 +1,881 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:home_launcher_three/modules/settings/settings_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:get/get.dart';
+import 'package:get/get_core/src/get_main.dart';
+import 'package:installed_apps/app_info.dart';
+import 'package:installed_apps/installed_apps.dart';
+import '../app_sections.dart';
+import '../database/app_database.dart';
+import '../models/folder.dart';
+import '../managers/interstitial_ad_manager.dart';
+import '../services/icon_cache_service.dart';
+import '../sort_options.dart';
+import '../widgets/folder_widget.dart';
+import 'app_layout_manager.dart';
+import '../main.dart';
+
+class AppGridView extends StatefulWidget {
+  final List<AppInfo> apps;
+  final List<Folder> folders;
+  final List<AppInfo> pinnedApps;
+  final bool showingHiddenApps;
+  final Function(BuildContext, AppInfo, bool, {VoidCallback? onAppRemoved})
+      onAppLongPress;
+  final VoidCallback onFoldersChanged;
+  final bool isSelectingAppsToHide;
+  final List<String> hiddenApps;
+  final void Function(String) onAppLaunch;
+  final Map<String, int> notificationCounts;
+  final bool showNotificationBadges;
+  final TextEditingController searchController;
+  final AppListSortType sortType;
+
+  const AppGridView({
+    super.key,
+    required this.apps,
+    required this.folders,
+    required this.pinnedApps,
+    required this.showingHiddenApps,
+    required this.onAppLongPress,
+    required this.onFoldersChanged,
+    required this.isSelectingAppsToHide,
+    required this.hiddenApps,
+    required this.onAppLaunch,
+    required this.notificationCounts,
+    required this.showNotificationBadges,
+    required this.searchController,
+    required this.sortType,
+  });
+
+  @override
+  State<AppGridView> createState() => _AppGridViewState();
+}
+
+class _AppGridViewState extends State<AppGridView> with WidgetsBindingObserver {
+  int _columnCount = 4;
+  final IconCacheService _iconCache = IconCacheService.instance;
+  final ScrollController _scrollController = ScrollController();
+  bool _isScrolling = false;
+  Timer? _scrollEndTimer;
+  Timer? _sectionUpdateTimer;
+  String? _currentSection;
+  bool _waitingForAppReturn = false;
+  bool _isFirstResume = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _loadColumnCount();
+    _scrollController.addListener(_scrollListener);
+    widget.searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void didUpdateWidget(AppGridView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _loadColumnCount();
+    if (widget.searchController != oldWidget.searchController) {
+      oldWidget.searchController.removeListener(_onSearchChanged);
+      widget.searchController.addListener(_onSearchChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_scrollListener);
+    _scrollController.dispose();
+    widget.searchController.removeListener(_onSearchChanged);
+    _scrollEndTimer?.cancel();
+    _sectionUpdateTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    print("🔄 App lifecycle state changed: $state");
+    print("⏳ Waiting for app return flag: $_waitingForAppReturn");
+    
+    if (state == AppLifecycleState.resumed) {
+      if (_isFirstResume) {
+        _isFirstResume = false;
+        print("🚀 First resume - skipping ad");
+      } else if (_waitingForAppReturn) {
+        print("🎯 User returned from app! Preparing to show ad...");
+        _waitingForAppReturn = false;
+        
+        // Small delay to ensure smooth transition
+        Future.delayed(const Duration(milliseconds: 300), () {
+          _showInterstitialOnReturn();
+        });
+      }
+    }
+  }
+
+  Future<void> _showInterstitialOnReturn() async {
+    print("📺 === SHOWING AD ON RETURN ===");
+    print("📊 Ad Status: ${InterstitialAdManager.instance.isAdReady}");
+    final isDefault = await LauncherHelper.isDefaultLauncher();
+    if (isDefault) {
+      await InterstitialAdManager.instance.showAdAlways();
+    }
+    
+    print("✅ === AD ON RETURN COMPLETED ===");
+  }
+
+  void _scrollListener() {
+    if (!_isScrolling) {
+      setState(() {
+        _isScrolling = true;
+      });
+    }
+    _scrollEndTimer?.cancel();
+    _scrollEndTimer = Timer(const Duration(seconds: 1), () {
+      if (mounted) {
+        setState(() {
+          _isScrolling = false;
+        });
+      }
+    });
+
+    _throttleSectionUpdate();
+  }
+
+  void _throttleSectionUpdate() {
+    _sectionUpdateTimer?.cancel();
+    _sectionUpdateTimer = Timer(const Duration(milliseconds: 100), () {
+      _updateCurrentSection();
+    });
+  }
+
+  void _updateCurrentSection() {
+    final sections = AppSectionManager.createSections(
+      _filteredApps,
+      sortType: widget.sortType,
+    );
+    if (sections.isEmpty) return;
+
+    double offset = 0;
+    if (!widget.showingHiddenApps &&
+        widget.pinnedApps.isNotEmpty &&
+        widget.searchController.text.isEmpty) {
+      final pinnedRowCount = (widget.pinnedApps.length / _columnCount).ceil();
+      offset += 40.0 + (pinnedRowCount * 120.0) + 20.0;
+    } 
+
+    if (!widget.showingHiddenApps &&
+        widget.folders.isNotEmpty &&
+        widget.searchController.text.isEmpty) {
+      final folderRowCount = (widget.folders.length / _columnCount).ceil();
+      offset += 40.0 + (folderRowCount * 120.0) + 20.0;
+    }
+
+    for (final section in sections) {
+      final sectionHeight =
+          60.0 + ((section.apps.length / _columnCount).ceil() * 120.0);
+      if (_scrollController.offset >= offset &&
+          _scrollController.offset < offset + sectionHeight) {
+        if (_currentSection != section.letter) {
+          setState(() {
+            _currentSection = section.letter;
+          });
+          HapticFeedback.selectionClick();
+        }
+        break;
+      }
+      offset += sectionHeight;
+    }
+  }
+
+  void _onSearchChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _loadColumnCount() async {
+    final columns = await AppLayoutManager.getGridColumns();
+    if (mounted) {
+      setState(() {
+        _columnCount = columns;
+      });
+    }
+  }
+
+  List<AppInfo> get _filteredApps {
+    final allAppsInFolders =
+        widget.folders.expand((folder) => folder.appPackageNames).toSet();
+    final query = widget.searchController.text.toLowerCase();
+
+    List<AppInfo> appsToShow;
+
+    if (widget.isSelectingAppsToHide) {
+      appsToShow = widget.apps;
+    } else if (widget.showingHiddenApps) {
+      appsToShow = widget.apps
+          .where((app) => widget.hiddenApps.contains(app.packageName))
+          .toList();
+    } else {
+      appsToShow = widget.apps
+          .where((app) =>
+              !widget.hiddenApps.contains(app.packageName) &&
+              (query.isNotEmpty || !allAppsInFolders.contains(app.packageName)))
+          .toList();
+    }
+
+
+    // Always hide FuseLauncher itself from the app list
+    appsToShow = appsToShow
+        .where((app) => app.packageName != 'com.kayfahaarukku.homelauncherthree')
+        .toList();
+    debugPrint('FuseLauncher: Filtered launcher app, remaining apps=${appsToShow.length}');
+
+    // Apply sort type, except usage which is pre-sorted
+    if (widget.sortType == AppListSortType.alphabeticalAsc) {
+      appsToShow
+          .sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    } else if (widget.sortType == AppListSortType.alphabeticalDesc) {
+      appsToShow
+          .sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
+    }
+
+    if (query.isNotEmpty) {
+      appsToShow = appsToShow
+          .where((app) => app.name.toLowerCase().contains(query))
+          .toList();
+    }
+    return appsToShow;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final sections = AppSectionManager.createSections(_filteredApps, sortType: widget.sortType);
+
+    final showFolders = !widget.showingHiddenApps &&
+        widget.folders.isNotEmpty &&
+        widget.searchController.text.isEmpty;
+    final showPinned = !widget.showingHiddenApps &&
+        widget.pinnedApps.isNotEmpty &&
+        widget.searchController.text.isEmpty;
+
+    final scrollbarTheme = Theme.of(context).copyWith(
+      scrollbarTheme: ScrollbarThemeData(
+        thumbColor: WidgetStateProperty.all(Colors.white.withAlpha(77)),
+        radius: const Radius.circular(10.0),
+        thickness: WidgetStateProperty.all(6.0),
+        interactive: true,
+      ),
+    );
+
+    return Theme(
+      data: scrollbarTheme,
+      child: Scrollbar(
+        controller: _scrollController,
+        thumbVisibility: _isScrolling,
+        interactive: true,
+        child: CustomScrollView(
+          controller: _scrollController,
+          physics: const BouncingScrollPhysics(),
+          cacheExtent: 500,
+          slivers: [
+            if (showPinned) ...[
+              _buildSectionHeader('Pinned Apps', isDarkMode),
+              _buildPinnedAppsGrid(),
+              if (showFolders) const SliverToBoxAdapter(child: Divider()),
+            ],
+            if (showFolders) ...[
+              _buildSectionHeader('Folders', isDarkMode),
+              _buildFolderGrid(),
+              const SliverToBoxAdapter(child: Divider()),
+            ],
+            if (widget.searchController.text.isNotEmpty)
+              _buildAppSearchGrid(_filteredApps)
+            else
+              ..._buildAppSections(sections, isDarkMode),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, bool isDarkMode) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        child: Text(
+          title,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: isDarkMode ? Colors.white : Colors.black,
+          ),
+        ),
+      ),
+    );
+  }
+
+  SliverPadding _buildFolderGrid() {
+    return SliverPadding(
+      padding: const EdgeInsets.all(16.0),
+      sliver: SliverGrid(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: _columnCount,
+          crossAxisSpacing: 16.0,
+          mainAxisSpacing: 16.0,
+          childAspectRatio: 0.8,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final folder = widget.folders[index];
+            return FolderWidget(
+              folder: folder,
+              onTap: () => _showFolderAppsDialog(folder),
+              onLongPress: () => _showFolderOptionsDialog(folder),
+            );
+          },
+          childCount: widget.folders.length,
+        ),
+      ),
+    );
+  }
+
+  SliverPadding _buildPinnedAppsGrid() {
+    return SliverPadding(
+      padding: const EdgeInsets.all(16.0),
+      sliver: SliverGrid(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: _columnCount,
+          crossAxisSpacing: 16.0,
+          mainAxisSpacing: 16.0,
+          childAspectRatio: 0.8,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) => _buildAppIcon(widget.pinnedApps[index]),
+          childCount: widget.pinnedApps.length,
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildAppSections(List<AppSection> sections, bool isDarkMode) {
+    return sections.expand((section) {
+      return [
+        // _buildSectionHeader(section.letter, isDarkMode),
+        SliverPadding(
+          padding: const EdgeInsets.all(16.0),
+          sliver: SliverGrid(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: _columnCount,
+              crossAxisSpacing: 16.0,
+              mainAxisSpacing: 16.0,
+              childAspectRatio: 0.8,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => _buildAppIcon(section.apps[index]),
+              childCount: section.apps.length,
+            ),
+          ),
+        ),
+      ];
+    }).toList();
+  }
+
+  SliverPadding _buildAppSearchGrid(List<AppInfo> apps) {
+    return SliverPadding(
+      padding: const EdgeInsets.all(16.0),
+      sliver: SliverGrid(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: _columnCount,
+          crossAxisSpacing: 16.0,
+          mainAxisSpacing: 16.0,
+          childAspectRatio: 0.8,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) => _buildAppIcon(apps[index]),
+          childCount: apps.length,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppIcon(AppInfo application) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final isPinned = widget.pinnedApps
+        .any((app) => app.packageName == application.packageName);
+    final isSelectedToHide = widget.isSelectingAppsToHide &&
+        widget.hiddenApps.contains(application.packageName);
+
+
+    return InkWell(
+      onTap: () async {
+        if(application.packageName == 'com.android.settings'){
+          Get.to(() => SettingsScreen());
+        } else {
+          widget.onAppLaunch(application.packageName);
+          if (!widget.isSelectingAppsToHide) {
+            try {
+              print("\n========================================");
+              print("🎯 APP TAPPED: ${application.name}");
+              print("📦 Package: ${application.packageName}");
+              print("========================================");
+              print("📊 Ad Status Before: ${InterstitialAdManager.instance.isAdReady}");
+              
+              // Show Google Interstitial ad before launching app (only if default launcher)
+              print("📺 Step 1: Checking if should show Interstitial Ad...");
+              final isDefault = await LauncherHelper.isDefaultLauncher();
+              print("🏠 Is default launcher: $isDefault");
+              
+              if (isDefault) {
+                print("📺 Step 1: Showing Interstitial Ad...");
+                await InterstitialAdManager.instance.showAdAlways();
+                print("✅ Step 1 Complete: Ad dismissed");
+              } else {
+                print("⏭️ Step 1: Skipping ad - app is not default launcher");
+              }
+              
+              print("📊 Ad Status After: ${InterstitialAdManager.instance.isAdReady}");
+              
+              // await SmartLinkService.openSmartLinkAndWait();
+              
+              // Mark that we're waiting for the user to return from this app
+              print("⏳ Step 2: Setting wait flag for return ad...");
+              _waitingForAppReturn = true;
+              
+              print("🚀 Step 3: Launching app: ${application.name}");
+              await InstalledApps.startApp(application.packageName);
+              
+              print("✅ App launch command sent");
+              print("========================================\n");
+            } catch (e) {
+              print("❌ ERROR in app launch flow: $e");
+              _waitingForAppReturn = false;
+            }
+          }
+        }
+      },
+      onLongPress: () => widget.onAppLongPress(context, application, isPinned),
+      borderRadius: BorderRadius.circular(16.0),
+      child: Stack(
+        children: [
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildIconWithBadge(application, isDarkMode),
+                const SizedBox(height: 8.0),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                  child: Text(
+                    application.name,
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.white : Colors.black,
+                      fontSize: 12,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (isSelectedToHide)
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withAlpha(128),
+                borderRadius: BorderRadius.circular(16.0),
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.check_circle,
+                  color: Colors.white,
+                  size: 30,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIconWithBadge(AppInfo application, bool isDarkMode) {
+    final hasNotifications = widget.showNotificationBadges &&
+        widget.notificationCounts.containsKey(application.packageName) &&
+        widget.notificationCounts[application.packageName]! > 0;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        FutureBuilder<Uint8List?>(
+          future: _loadAppIcon(application.packageName),
+          builder: (context, snapshot) {
+            return Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12.0),
+                image: (snapshot.data != null)
+                    ? DecorationImage(
+                        image: MemoryImage(snapshot.data!),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+              child: (snapshot.data == null)
+                  ? const Icon(Icons.apps, size: 30)
+                  : null,
+            );
+          },
+        ),
+        if (hasNotifications)
+          Positioned(
+            top: -4,
+            right: -4,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.red,
+              ),
+              child: Text(
+                widget.notificationCounts[application.packageName].toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<Uint8List?> _loadAppIcon(String packageName) async {
+    return await _iconCache.getIcon(packageName, apps: widget.apps);
+  }
+
+  void _showFolderAppsDialog(Folder folder) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(builder: (context, setState) {
+          return AlertDialog(
+            title: Text(folder.name),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: GridView.builder(
+                shrinkWrap: true,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: _columnCount,
+                  crossAxisSpacing: 16.0,
+                  mainAxisSpacing: 16.0,
+                  childAspectRatio: 0.8,
+                ),
+                itemCount: folder.apps.length,
+                itemBuilder: (context, index) {
+                  final app = folder.apps[index];
+                  return InkWell(
+                    onTap: () async {
+                      if(app.packageName == 'com.android.settings'){
+                        Get.to(() => SettingsScreen());
+                      } else {
+                        widget.onAppLaunch(app.packageName);
+                        try {
+                          print("\n========================================");
+                          print("🎯 FOLDER APP TAPPED: ${app.name}");
+                          print("📦 Package: ${app.packageName}");
+                          print("========================================");
+                          print("📊 Ad Status Before: ${InterstitialAdManager.instance.isAdReady}");
+                          
+                          // Show Google Interstitial ad before launching app from folder (only if default launcher)
+                          print("📺 Step 1: Checking if should show Interstitial Ad...");
+                          final isDefault = await LauncherHelper.isDefaultLauncher();
+                          print("🏠 Is default launcher: $isDefault");
+                          
+                          if (isDefault) {
+                            print("📺 Step 1: Showing Interstitial Ad...");
+                            await InterstitialAdManager.instance.showAdAlways();
+                            print("✅ Step 1 Complete: Ad dismissed");
+                          } else {
+                            print("⏭️ Step 1: Skipping ad - app is not default launcher");
+                          }
+                          
+                          print("📊 Ad Status After: ${InterstitialAdManager.instance.isAdReady}");
+                          
+                          // await SmartLinkService.openSmartLinkAndWait();
+                          
+                          // Mark that we're waiting for the user to return
+                          print("⏳ Step 2: Setting wait flag for return ad...");
+                          _waitingForAppReturn = true;
+                          
+                          print("🚀 Step 3: Launching folder app: ${app.name}");
+                          await InstalledApps.startApp(app.packageName);
+                          
+                          print("✅ Folder app launch command sent");
+                          print("========================================\n");
+                        } catch (e) {
+                          print("❌ ERROR in folder app launch: $e");
+                          _waitingForAppReturn = false;
+                        }
+                      }
+                    },
+                    onLongPress: () => widget
+                        .onAppLongPress(context, app, false, onAppRemoved: () {
+                      setState(() {
+                        folder.apps.remove(app);
+                      });
+                    }),
+                    borderRadius: BorderRadius.circular(16.0),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildIconWithBadge(app,
+                              Theme.of(context).brightness == Brightness.dark),
+                          const SizedBox(height: 8.0),
+                          Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 4.0),
+                            child: Text(
+                              app.name,
+                              style: TextStyle(
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black,
+                                fontSize: 12,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        });
+      },
+    );
+  }
+
+  void _showFolderOptionsDialog(Folder folder) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor:
+          isDarkMode ? const Color(0xFF252525) : Colors.white.withAlpha(242),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.9,
+      ),
+      isScrollControlled: true,
+      builder: (context) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: isDarkMode
+                    ? const Color(0xFF757575)
+                    : const Color(0xFFBDBDBD),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewPadding.bottom + 16.0,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 20),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: isDarkMode
+                                    ? const Color(0xFF424242)
+                                    : const Color(0xFFE0E0E0),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.folder,
+                                color: Colors.amber,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 15),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    folder.name,
+                                    style: TextStyle(
+                                      color: isDarkMode
+                                          ? Colors.white
+                                          : Colors.black,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${folder.apps.length} app${folder.apps.length != 1 ? 's' : ''}',
+                                    style: TextStyle(
+                                      color: isDarkMode
+                                          ? Colors.white70
+                                          : Colors.black54,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ListTile(
+                        leading: Icon(Icons.edit,
+                            color: isDarkMode ? Colors.white : Colors.black),
+                        title: Text(
+                          'Rename',
+                          style: TextStyle(
+                              color: isDarkMode ? Colors.white : Colors.black),
+                        ),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _showRenameFolderDialog(folder);
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.delete, color: Colors.red),
+                        title: Text(
+                          'Delete Folder',
+                          style: TextStyle(
+                              color: isDarkMode ? Colors.white : Colors.black),
+                        ),
+                        onTap: () async {
+                          Navigator.pop(context);
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              backgroundColor: isDarkMode
+                                  ? const Color(0xFF1E1E1E)
+                                  : Colors.white,
+                              title: Text(
+                                'Delete Folder',
+                                style: TextStyle(
+                                    color: isDarkMode
+                                        ? Colors.white
+                                        : Colors.black),
+                              ),
+                              content: Text(
+                                  'Are you sure you want to delete the "${folder.name}" folder? The apps inside will be moved to the main app list.',
+                                  style: TextStyle(
+                                      color: isDarkMode
+                                          ? Colors.white70
+                                          : Colors.black87)),
+                              actions: [
+                                TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
+                                    child: const Text('Cancel')),
+                                TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
+                                    child: const Text('Delete',
+                                        style: TextStyle(color: Colors.red))),
+                              ],
+                            ),
+                          );
+                          if (confirmed == true) {
+                            await AppDatabase.deleteFolder(folder.id);
+                            if (!context.mounted) return;
+                            widget.onFoldersChanged();
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showRenameFolderDialog(Folder folder) {
+    final controller = TextEditingController(text: folder.name);
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Rename Folder'),
+          content: TextField(controller: controller),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final newName = controller.text.trim();
+                if (newName.isNotEmpty) {
+                  if (widget.folders.any((f) =>
+                      f.id != folder.id &&
+                      f.name.toLowerCase() == newName.toLowerCase())) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content:
+                              Text('A folder with this name already exists.')),
+                    );
+                    return;
+                  }
+                  folder.name = newName;
+                  await AppDatabase.updateFolder(folder);
+                  if (!context.mounted) return;
+                  Navigator.pop(context);
+                  widget.onFoldersChanged();
+                }
+              },
+              child: const Text('Rename'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
