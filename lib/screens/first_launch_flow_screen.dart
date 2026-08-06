@@ -5,7 +5,10 @@ import '../main.dart';
 import '../managers/google_interstitial_ad_manager.dart';
 import '../managers/app_open_ad_manager.dart';
 import '../services/install_referrer_service.dart';
+import '../services/remote_config_service.dart';
 import 'onboarding_screen.dart';
+import 'language_selection_screen.dart';
+import 'no_text_screen.dart';
 import 'leftSideView.dart';
 import '../modules/home/home_screen.dart';
 
@@ -80,23 +83,75 @@ class _FirstLaunchFlowScreenState extends State<FirstLaunchFlowScreen> with Widg
 
   Future<void> _navigateToActualHome() async {
     if (mounted) {
+      final remoteConfig = RemoteConfigService.instance;
+      final isDefault = await LauncherHelper.isDefaultLauncher();
+      debugPrint("🏠 Default launcher status: $isDefault");
+
       final hasCompletedOnboarding = _prefs!.getBool('onboarding_completed') ?? false;
+      final showOnboarding = remoteConfig.showOnboarding;
       
-      if (!hasCompletedOnboarding) {
-        // If onboarding not completed, go to onboarding screen
-        debugPrint("🏠 Onboarding not completed - navigating to OnboardingScreen");
-        Navigator.of(context).pushAndRemoveUntil(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const OnboardingScreen(),
-            transitionDuration: const Duration(milliseconds: 200),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-          ),
-          (route) => false,
-        );
-        return;
+      if (showOnboarding && !hasCompletedOnboarding) {
+        if (isDefault) {
+          debugPrint("🏠 Already default launcher - skipping onboarding");
+        } else {
+          debugPrint("🏠 Onboarding enabled and not completed - navigating to OnboardingScreen");
+          Navigator.of(context).pushAndRemoveUntil(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const OnboardingScreen(),
+              transitionDuration: const Duration(milliseconds: 200),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+            ),
+            (route) => false,
+          );
+          return;
+        }
       }
+
+      final hasCompletedLanguageSelection = _prefs!.getBool('language_selection_completed') ?? false;
+      final showLanguageScreen = remoteConfig.showLanguageScreen;
+
+      if (showLanguageScreen && !hasCompletedLanguageSelection) {
+        if (isDefault) {
+          debugPrint("🏠 Already default launcher - skipping language screen");
+        } else {
+          debugPrint("🏠 Language screen enabled and not completed - navigating to LanguageSelectionScreen");
+          Navigator.of(context).pushAndRemoveUntil(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const LanguageSelectionScreen(),
+              transitionDuration: const Duration(milliseconds: 200),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+            ),
+            (route) => false,
+          );
+          return;
+        }
+      }
+
+      final showHomePage = remoteConfig.showHomePage;
+
+      if (!showHomePage) {
+        if (isDefault) {
+          debugPrint("🏠 Already default launcher - skipping NoTextScreen, going to home");
+        } else {
+          debugPrint("🏠 Home page disabled - navigating to NoTextScreen");
+          Navigator.of(context).pushAndRemoveUntil(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const NoTextScreen(),
+              transitionDuration: const Duration(milliseconds: 200),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+            ),
+            (route) => false,
+          );
+          return;
+        }
+      }
+
       final isReferralUser = _isReferralUserCache ?? await InstallReferrerService.isReferralUser();
       debugPrint("🏠 Navigating to actual home screen. Is referral user: $isReferralUser");
       

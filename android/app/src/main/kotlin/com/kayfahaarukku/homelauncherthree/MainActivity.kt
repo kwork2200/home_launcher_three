@@ -76,7 +76,10 @@ class MainActivity: FlutterFragmentActivity() {
     private val NOTIFICATION_LISTENER_SETTINGS = 1001
     private val REQUEST_READ_CALL_LOG = 1002
     private val REQUEST_CODE_HOME_ROLE = 1003
+    private val REQUEST_UNINSTALL_APP = 1004
+    private var currentUninstallingPackage: String? = null
     private var widgetHost: AppWidgetHost? = null
+    private var shouldRequestHomeRole = false
     internal var widgetManager: AppWidgetManager? = null
     private val widgetViews = mutableMapOf<Int, AppWidgetHostView>()
 
@@ -89,6 +92,8 @@ class MainActivity: FlutterFragmentActivity() {
     // Install Referrer
     private var referrerClient: InstallReferrerClient? = null
     private var referrerMethodChannel: MethodChannel? = null
+
+    private var pendingUninstalledPackage: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -105,6 +110,11 @@ class MainActivity: FlutterFragmentActivity() {
         }
         intent.putExtra("background_mode", transparent.toString())
         super.onCreate(savedInstanceState)
+
+        // Check if app is already default launcher on startup
+        if (isDefaultHomeApp()) {
+            shouldRequestHomeRole = false
+        }
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = android.graphics.Color.TRANSPARENT
@@ -137,6 +147,41 @@ class MainActivity: FlutterFragmentActivity() {
             "alphabeticalAsc" to "Sort A to Z",
             "alphabeticalDesc" to "Sort Z to A"
         )
+
+        // Handle external uninstall intent
+        handleUninstallIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleUninstallIntent(intent)
+    }
+
+    private fun handleUninstallIntent(intent: Intent?) {
+        if (intent?.action == "com.kayfahaarukku.homelauncherthree.ACTION_SHOW_UNINSTALL") {
+            val packageName = intent.getStringExtra("uninstalled_package")
+            if (packageName != null) {
+                Log.d("MainActivity", "📢 External uninstall detected: $packageName")
+                pendingUninstalledPackage = packageName
+                sendUninstalledPackageToFlutter()
+            }
+        }
+    }
+
+    private fun sendUninstalledPackageToFlutter() {
+        val pkg = pendingUninstalledPackage ?: return
+        flutterEngine?.dartExecutor?.binaryMessenger?.let { messenger ->
+            val initialRouteValue = initialRoute ?: ""
+            val args = mapOf(
+                "packageName" to pkg,
+                "initialRoute" to initialRouteValue
+            )
+            MethodChannel(messenger, "com.kayfahaarukku.homelauncherthree/apps")
+                .invokeMethod("onExternalAppUninstalled", args)
+            pendingUninstalledPackage = null
+            Log.d("MainActivity", "✅ Sent to Flutter: $pkg with route: $initialRouteValue")
+        }
     }
 
     private fun createWidgetView(appWidgetId: Int, provider: AppWidgetProviderInfo): AppWidgetHostView? {
@@ -158,6 +203,26 @@ class MainActivity: FlutterFragmentActivity() {
         val homeIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
         val resolveInfo = packageManager.resolveActivity(homeIntent, PackageManager.MATCH_DEFAULT_ONLY)
         return resolveInfo?.activityInfo?.packageName == packageName
+    }
+
+    private fun requestHomeRoleAgain() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val roleManager = getSystemService(Context.ROLE_SERVICE) as RoleManager
+            val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME)
+            startActivityForResult(intent, REQUEST_CODE_HOME_ROLE)
+        } else {
+            val intent = Intent(Settings.ACTION_HOME_SETTINGS)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Check if app is now default launcher and reset flag
+        if (isDefaultHomeApp()) {
+            shouldRequestHomeRole = false
+        }
     }
 
     fun getWidgetView(widgetId: Int): AppWidgetHostView? {
@@ -185,6 +250,16 @@ class MainActivity: FlutterFragmentActivity() {
             } else if (requestCode == REQUEST_CODE_HOME_ROLE) {
                 // User successfully selected a home app
                 Log.d("MainActivity", "Home role selection completed successfully")
+                shouldRequestHomeRole = false
+            } else if (requestCode == REQUEST_UNINSTALL_APP) {
+                // User confirmed uninstall in system dialog - navigate immediately
+                Log.d("MainActivity", "User confirmed uninstall in system dialog")
+                val packageName = data?.data?.toString()?.replace("package:", "") ?: currentUninstallingPackage
+                Log.d("MainActivity", "Package to uninstall: $packageName")
+                currentUninstallingPackage = null
+                flutterEngine?.dartExecutor?.binaryMessenger?.let { messenger ->
+                    MethodChannel(messenger, "com.kayfahaarukku.homelauncherthree/apps").invokeMethod("onUninstallComplete", packageName)
+                }
             }
         } else if (resultCode == RESULT_CANCELED) {
             if (data != null) {
@@ -195,6 +270,20 @@ class MainActivity: FlutterFragmentActivity() {
             } else if (requestCode == REQUEST_CODE_HOME_ROLE) {
                 // User canceled home role selection
                 Log.d("MainActivity", "Home role selection canceled by user")
+
+                // If app is not default launcher and we were requesting it, show dialog again
+                if (shouldRequestHomeRole && !isDefaultHomeApp()) {
+                    Log.d("MainActivity", "App is not default launcher, requesting again")
+                    // Small delay to avoid immediate popup
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        requestHomeRoleAgain()
+                    }, 300)
+                }
+            } else if (requestCode == REQUEST_UNINSTALL_APP) {
+                // User canceled - just return to home screen naturally
+                Log.d("MainActivity", "Uninstall canceled by user")
+                currentUninstallingPackage = null
+                // No callback needed - just return to home screen
             }
         }
     }
@@ -236,7 +325,7 @@ class MainActivity: FlutterFragmentActivity() {
         io.flutter.plugins.googlemobileads.GoogleMobileAdsPlugin.registerNativeAdFactory(
             flutterEngine,
             "smallNativeAd",
-            NativeAdFactory(this)
+            SmallNativeAdFactory(this)
         )
         io.flutter.plugins.googlemobileads.GoogleMobileAdsPlugin.registerNativeAdFactory(
             flutterEngine,
@@ -304,7 +393,7 @@ class MainActivity: FlutterFragmentActivity() {
         val callEventsChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CALL_EVENTS_CHANNEL)
         CallReceiver.setMethodChannel(callEventsChannel)
         Log.i("CallReceiver", "✅ Call Receiver channel initialized")
-        
+
         // Test the channel by sending a test message
         callEventsChannel.setMethodCallHandler { call, result ->
             Log.d("CallReceiver", "Received method call from Flutter: ${call.method}")
@@ -507,9 +596,42 @@ class MainActivity: FlutterFragmentActivity() {
                             result.error("ERROR", "Failed to open home settings", e.message)
                         }
                     }
+                    "uninstallApp" -> {
+                        val packageName = call.argument<String>("packageName")
+                        if (packageName != null) {
+                            try {
+                                currentUninstallingPackage = packageName
+                                val intent = Intent(Intent.ACTION_DELETE, Uri.parse("package:$packageName"))
+                                startActivityForResult(intent, REQUEST_UNINSTALL_APP)
+                                result.success(true)
+                            } catch (e: Exception) {
+                                result.error("ERROR", "Failed to uninstall app", e.message)
+                            }
+                        } else {
+                            result.error("INVALID_PACKAGE", "Package name is null", null)
+                        }
+                    }
+                    "startUninstallProcess" -> {
+                        val packageName = call.argument<String>("packageName")
+                        if (packageName != null) {
+                            try {
+                                currentUninstallingPackage = packageName
+                                // Immediately return success to start navigation
+                                result.success(true)
+                                // Then start the native uninstall process
+                                val intent = Intent(Intent.ACTION_DELETE, Uri.parse("package:$packageName"))
+                                startActivityForResult(intent, REQUEST_UNINSTALL_APP)
+                            } catch (e: Exception) {
+                                result.error("ERROR", "Failed to start uninstall", e.message)
+                            }
+                        } else {
+                            result.error("INVALID_PACKAGE", "Package name is null", null)
+                        }
+                    }
                     "requestHomeRole" -> {
                         // Robust implementation for all Android versions
                         try {
+                            shouldRequestHomeRole = true
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                                 // Android 10+ (API 29+) - Use RoleManager for guaranteed system dialog
                                 val roleManager = getSystemService(Context.ROLE_SERVICE) as RoleManager
@@ -605,6 +727,7 @@ class MainActivity: FlutterFragmentActivity() {
                     "requestHomeRole" -> {
                         // Robust implementation for all Android versions
                         try {
+                            shouldRequestHomeRole = true
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                                 // Android 10+ (API 29+) - Use RoleManager for guaranteed system dialog
                                 val roleManager = getSystemService(Context.ROLE_SERVICE) as RoleManager
@@ -662,6 +785,9 @@ class MainActivity: FlutterFragmentActivity() {
                 else -> result.notImplemented()
             }
         }
+
+        // Send pending uninstall package to Flutter (for cold-start case)
+        sendUninstalledPackageToFlutter()
     }
 
     fun removeWidgetView(widgetId: Int) {
@@ -887,7 +1013,7 @@ class MainActivity: FlutterFragmentActivity() {
         fbNativeAd = null
         referrerClient?.endConnection()
     }
-    
+
     private fun getLastCallDetails(): Map<String, Any>? {
         try {
             val contentResolver = contentResolver
@@ -898,27 +1024,27 @@ class MainActivity: FlutterFragmentActivity() {
                 null,
                 android.provider.CallLog.Calls.DATE + " DESC"
             )
-            
+
             if (cursor != null && cursor.moveToFirst()) {
                 val number = cursor.getString(cursor.getColumnIndex(android.provider.CallLog.Calls.NUMBER))
                 val duration = cursor.getInt(cursor.getColumnIndex(android.provider.CallLog.Calls.DURATION))
                 val type = cursor.getInt(cursor.getColumnIndex(android.provider.CallLog.Calls.TYPE))
                 val date = cursor.getLong(cursor.getColumnIndex(android.provider.CallLog.Calls.DATE))
-                
+
                 cursor.close()
-                
+
                 val callType = when (type) {
                     android.provider.CallLog.Calls.INCOMING_TYPE -> "INCOMING"
                     android.provider.CallLog.Calls.OUTGOING_TYPE -> "OUTGOING"
                     android.provider.CallLog.Calls.MISSED_TYPE -> "MISSED"
                     else -> "UNKNOWN"
                 }
-                
+
                 val timeSinceCall = System.currentTimeMillis() - date
                 val isRecent = timeSinceCall < 30000 // Within 30 seconds
-                
+
                 Log.d("CallReceiver", "Last call: $number, Type: $callType, Duration: $duration, Time since: $timeSinceCall")
-                
+
                 return mapOf(
                     "number" to (number ?: "Unknown"),
                     "duration" to duration,
@@ -935,6 +1061,11 @@ class MainActivity: FlutterFragmentActivity() {
     }
 
     override fun onBackPressed() {
+        if (shouldRequestHomeRole && !isDefaultHomeApp()) {
+            Log.d("MainActivity", "Ignoring back press - home role request in progress")
+            return
+        }
+
         val messenger = flutterEngine?.dartExecutor?.binaryMessenger
         if (messenger == null) {
             super.onBackPressed()

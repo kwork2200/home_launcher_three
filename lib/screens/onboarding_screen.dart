@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart';
 import '../managers/app_open_ad_manager.dart';
+import 'language_selection_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -19,6 +20,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
   bool _isProcessing = false;
+  bool _isLauncherDialogOpen = false;
+  int _dialogCancelCount = 0;
 
   final List<OnboardingPage> _pages = [
     OnboardingPage(
@@ -70,13 +73,49 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('selected_language', 'hi');
-    await prefs.setBool('language_selection_completed', true);
+    // Don't set language_selection_completed here - let LanguageSelectionScreen handle it
     await prefs.setBool('onboarding_completed', true);
 
-    // Always show the default launcher dialog for better user experience
+    setState(() => _isLauncherDialogOpen = true);
     await LauncherHelper.requestSetAsDefaultLauncher();
+    setState(() => _isLauncherDialogOpen = false);
 
-    // Check if app is now default launcher and initialize ads if so
+    final isDefault = await LauncherHelper.isDefaultLauncher();
+
+    if (isDefault) {
+      await LauncherHelper.initializeAdsIfDefaultLauncher();
+
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LanguageSelectionScreen()),
+            (route) => false,
+      );
+    } else {
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+
+      _dialogCancelCount++;
+
+      if (_dialogCancelCount >= 3) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Setting as default launcher is required. Please tap the checkmark to try again.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please set as default launcher to continue'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+
+    /*// Check if app is now default launcher and initialize ads if so
     await LauncherHelper.initializeAdsIfDefaultLauncher();
 
     if (!mounted) return;
@@ -85,13 +124,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const MyHomePage()),
           (route) => false,
-    );
+    );*/
   }
 
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-      onWillPop: () async => false,
+      onWillPop: () async {
+        // Check if default launcher is set
+        final isDefault = await LauncherHelper.isDefaultLauncher();
+        
+        // Block back button if not default launcher or during processing/dialog
+        if (!isDefault || _isProcessing || _isLauncherDialogOpen) {
+          return false;
+        }
+        return true;
+      },
       child: Scaffold(
         backgroundColor: backgroundColor,
         body: SafeArea(

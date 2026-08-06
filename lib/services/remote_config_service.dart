@@ -36,6 +36,11 @@ class RemoteConfigService {
     'android_fb_banner_ad_id': 'IMG_16_9_APP_INSTALL#YOUR_PLACEMENT_ID',
     'android_fb_interstitial_ad_id': 'VID_HD_16_9_46S_APP_INSTALL#YOUR_PLACEMENT_ID',
     'android_fb_native_ad_id': 'IMG_16_9_APP_INSTALL#YOUR_PLACEMENT_ID',
+    
+    // Screen visibility flags
+    'show_onboarding': true,
+    'show_language_screen': true,
+    'show_home_page': true,
   };
 
   /// Initialize Remote Config
@@ -281,6 +286,34 @@ class RemoteConfigService {
     } catch (e) {
       print('⚠️ Error getting android_fb_native_ad_id: $e');
       return _defaults['android_fb_native_ad_id'] as String;
+    }
+  }
+
+  // Screen visibility flags
+  bool get showOnboarding {
+    try {
+      return _remoteConfig.getBool('show_onboarding');
+    } catch (e) {
+      print('⚠️ Error getting show_onboarding: $e');
+      return _defaults['show_onboarding'] as bool;
+    }
+  }
+
+  bool get showLanguageScreen {
+    try {
+      return _remoteConfig.getBool('show_language_screen');
+    } catch (e) {
+      print('⚠️ Error getting show_language_screen: $e');
+      return _defaults['show_language_screen'] as bool;
+    }
+  }
+
+  bool get showHomePage {
+    try {
+      return _remoteConfig.getBool('show_home_page');
+    } catch (e) {
+      print('⚠️ Error getting show_home_page: $e');
+      return _defaults['show_home_page'] as bool;
     }
   }
 }

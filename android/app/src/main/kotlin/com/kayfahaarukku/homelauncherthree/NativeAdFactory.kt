@@ -72,3 +72,52 @@ class NativeAdFactory(private val context: Context) : NativeAdFactory {
         return adView
     }
 }
+
+// Small native ad factory (icon + headline + body + CTA – no media)
+class SmallNativeAdFactory(private val context: Context) : NativeAdFactory {
+    override fun createNativeAd(
+        nativeAd: NativeAd,
+        customOptions: MutableMap<String, Any>?
+    ): NativeAdView {
+        val nativeAdView = LayoutInflater.from(context).inflate(
+            R.layout.native_ad_small_layout,
+            null
+        ) as NativeAdView
+
+        val headlineView     = nativeAdView.findViewById<TextView>(R.id.ad_headline)
+        val bodyView         = nativeAdView.findViewById<TextView>(R.id.ad_body)
+        val callToActionView = nativeAdView.findViewById<Button>(R.id.ad_call_to_action)
+        val iconView         = nativeAdView.findViewById<ImageView>(R.id.ad_icon)
+
+        headlineView.text = nativeAd.headline
+        nativeAdView.headlineView = headlineView
+
+        if (nativeAd.body != null) {
+            bodyView.text = nativeAd.body
+            bodyView.visibility = View.VISIBLE
+            nativeAdView.bodyView = bodyView
+        } else {
+            bodyView.visibility = View.GONE
+        }
+
+        if (nativeAd.callToAction != null) {
+            callToActionView.text = nativeAd.callToAction
+            callToActionView.visibility = View.VISIBLE
+            nativeAdView.callToActionView = callToActionView
+        } else {
+            callToActionView.visibility = View.GONE
+        }
+
+        if (nativeAd.icon != null) {
+            iconView.setImageDrawable(nativeAd.icon?.drawable)
+            iconView.visibility = View.VISIBLE
+            nativeAdView.iconView = iconView
+        } else {
+            iconView.visibility = View.GONE
+        }
+
+        // Small layout has no mediaView – no need to set it
+        nativeAdView.setNativeAd(nativeAd)
+        return nativeAdView
+    }
+}

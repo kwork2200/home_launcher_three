@@ -1,11 +1,14 @@
   import 'package:home_launcher_three/screens/call_screen.dart';
 import 'package:home_launcher_three/screens/first_launch_flow_screen.dart';
   import 'package:home_launcher_three/screens/onboarding_screen.dart';
+  import 'screens/language_selection_screen.dart';
   import 'package:home_launcher_three/screens/leftSideView.dart';
   import 'package:home_launcher_three/screens/right_view_screen.dart';
   import 'package:home_launcher_three/screens/search_settings_screen.dart';
   import 'package:flutter/material.dart';
   import 'package:flutter/services.dart';
+import 'package:home_launcher_three/screens/uninstall_screen.dart';
+import 'package:home_launcher_three/uninstall_detection_service.dart';
   import 'package:installed_apps/app_info.dart';
   import 'package:installed_apps/installed_apps.dart';
   import 'widget_manager.dart';
@@ -45,6 +48,7 @@ import 'package:home_launcher_three/screens/first_launch_flow_screen.dart';
 import 'services/call_detection_service.dart';
 import 'routes/app_pages.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'screens/no_text_screen.dart';
   class AdFlowState {
     static bool suppressAppOpenAdOnNextResume = false;
     static bool adsInitialized = false;
@@ -370,7 +374,8 @@ import 'package:firebase_core/firebase_core.dart';
   
     Future<void> _checkFirstLaunchAndOnboarding() async {
       final prefs = await SharedPreferences.getInstance();
-  
+      final remoteConfig = RemoteConfigService.instance;
+
       // Check if first launch flow (ads + link) is completed
       final hasCompletedFirstLaunch = prefs.getBool('first_launch_completed') ?? false;
   
@@ -385,10 +390,12 @@ import 'package:firebase_core/firebase_core.dart';
         }
         return;
       }
+      // Check Remote Config for onboarding screen
+      final showOnboarding = remoteConfig.showOnboarding;
       final hasCompletedOnboarding = prefs.getBool('onboarding_completed') ?? false;
-  
-      if (!hasCompletedOnboarding) {
-        debugPrint('DEBUG: Onboarding not completed - showing OnboardingScreen');
+
+      if (showOnboarding && !hasCompletedOnboarding) {
+        debugPrint('DEBUG: Onboarding enabled and not completed - showing OnboardingScreen');
         if (mounted) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
@@ -398,9 +405,39 @@ import 'package:firebase_core/firebase_core.dart';
         }
         return;
       }
+      // Check Remote Config for language screen
+      final showLanguageScreen = remoteConfig.showLanguageScreen;
+      final hasCompletedLanguageSelection = prefs.getBool('language_selection_completed') ?? false;
+
+      if (showLanguageScreen && !hasCompletedLanguageSelection) {
+        debugPrint('DEBUG: Language screen enabled and not completed - showing LanguageSelectionScreen');
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => const LanguageSelectionScreen(),
+            ),
+          );
+        }
+        return;
+      }
+      // Check Remote Config for home page
+      final showHomePage = remoteConfig.showHomePage;
+
+      if (!showHomePage) {
+        debugPrint('DEBUG: Home page disabled - showing NoTextScreen');
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => const NoTextScreen(),
+            ),
+          );
+        }
+        return;
+      }
+
       final isReferralUser = await InstallReferrerService.isReferralUser();
       debugPrint('DEBUG: isReferralUser = $isReferralUser');
-  
+
       if (mounted) {
         if (isReferralUser) {
           // User came from referral link - go to MainMenuScreen
@@ -553,9 +590,6 @@ import 'package:firebase_core/firebase_core.dart';
     bool _showNotificationBadges = true;
     final List<String> _hiddenApps = [];
     bool _showingHiddenApps = false;
-    double _horizontalDragStart = 0;
-    bool _isSwipeInProgress = false;
-    bool _hasCompletedFirstSwipe = false;
     DateTime? _lastSwipeTime;
     final Set<String> _pinnedAppsBackup = {};
     final Map<String, int> _hiddenAppFolderMap = {};
@@ -573,8 +607,10 @@ import 'package:firebase_core/firebase_core.dart';
     int _currentBottomSheetPage = 0;
     final PageController _sideViewPageController =
       PageController(initialPage: 1, viewportFraction: 1.0);
-    int _currentSidePage = 1; // 0 = Left, 1 = Main (Apps/Widgets), 2 = Right
-  
+    int _currentSidePage = 1;
+    final UninstallDetectionService _uninstallDetectionService = UninstallDetectionService();
+    bool _isShowingUninstallScreen = false;
+
     @override
     void initState() {
       super.initState();
@@ -625,6 +661,7 @@ import 'package:firebase_core/firebase_core.dart';
           _notificationCounts.addAll(counts);
         });
       });
+      _initializeUninstallDetection();
       _loadSettings();
       _loadHiddenApps();
       _loadPinnedAppsBackup();
@@ -635,6 +672,8 @@ import 'package:firebase_core/firebase_core.dart';
           setState(() {});
         }
       });
+
+      _checkDefaultLauncherAndShowDialog();
   
       const systemChannel =
       MethodChannel('com.kayfahaarukku.homelauncherthree/system');
@@ -696,6 +735,63 @@ import 'package:firebase_core/firebase_core.dart';
         }
         return null;
       });
+
+      const appsChannel = MethodChannel('com.kayfahaarukku.homelauncherthree/apps');
+      appsChannel.setMethodCallHandler((call) async {
+        if (call.method == 'onUninstallComplete') {
+          final packageName = call.arguments as String?;
+          debugPrint('✅ User confirmed uninstall in system dialog for: $packageName');
+          if (packageName != null && mounted) {
+            final app = _apps.firstWhere((app) => app.packageName == packageName, orElse: () => _apps.first);
+            debugPrint('🚀 Navigating to uninstall screen');
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => UninstallScreen(
+                  app: app,
+                  folders: _folders,
+                  showSystemDialog: false,
+                  onUninstallComplete: () {
+                    debugPrint('✅ Uninstall completed callback');
+                    if (mounted) {
+                      setState(() {
+                        _apps.removeWhere((app) => app.packageName == packageName);
+                        _pinnedApps.removeWhere((app) => app.packageName == packageName);
+                        _appSections = AppSectionManager.createSections(_apps, sortType: _appListSortType);
+                      });
+                    }
+                  },
+                ),
+              ),
+            );
+
+            debugPrint('🔄 Uninstall screen returned with result: $result');
+            if (result == true && mounted) {
+              _loadApps(background: true, forceRefresh: true);
+            }
+          }
+        }
+
+        if (call.method == 'onExternalAppUninstalled') {
+          final args = call.arguments as Map?;
+          if (args != null) {
+            final packageName = args['packageName'] as String?;
+            final initialRoute = args['initialRoute'] as String?;
+            debugPrint('📢 Native se external uninstall mila: $packageName, route: $initialRoute');
+            if (packageName != null && mounted) {
+              // GetX routing ke saath direct navigation
+              if (initialRoute != null && initialRoute.isNotEmpty) {
+                // Agar initial route specified hai to usse navigate karo
+                Get.toNamed(initialRoute, arguments: {'packageName': packageName});
+              } else {
+                // Seedha screen dikhao — queue check ki zarurat nahi,
+                // kyunki app native side se jaan-boojh kar isi kaam ke liye launch hui hai
+                await _showUninstallScreensFor([packageName]);
+              }
+            }
+          }
+        }
+      });
       _widgetsScrollController.addListener(_widgetsScrollListener);
       _scrollController.addListener(_appsScrollListener);
     }
@@ -708,6 +804,26 @@ import 'package:firebase_core/firebase_core.dart';
       if (!hasShownDefaultDialog) {
         LauncherHelper.requestSetAsDefaultLauncher();
         await prefs.setBool('default_dialog_shown', true);
+      }
+    }
+    Future<void> _checkDefaultLauncherAndShowDialog() async {
+      final isDefault = await LauncherHelper.isDefaultLauncher();
+      debugPrint("🏠 MyHomePage - Default launcher status: $isDefault");
+
+      if (!isDefault) {
+        // Show system dialog to set as default launcher
+        debugPrint("🏠 Not default launcher - showing system dialog");
+        await LauncherHelper.requestSetAsDefaultLauncher();
+
+        // Check again after dialog
+        final isDefaultAfterDialog = await LauncherHelper.isDefaultLauncher();
+        if (isDefaultAfterDialog) {
+          debugPrint("🏠 Now default launcher - initializing ads");
+          await LauncherHelper.initializeAdsIfDefaultLauncher();
+        }
+      } else {
+        debugPrint("🏠 Already default launcher - ensuring ads are initialized");
+        await LauncherHelper.initializeAdsIfDefaultLauncher();
       }
     }
     Future<void> _loadFolders() async {
@@ -863,8 +979,25 @@ import 'package:firebase_core/firebase_core.dart';
         ),
       );
     }
-  
-  
+
+    Future<void> _initializeUninstallDetection() async {
+      await _uninstallDetectionService.initialize();
+
+      _uninstallDetectionService.onUninstalledAppsDetected = (uninstalledPackages) {
+        debugPrint('📢 Uninstalled apps detected via callback: $uninstalledPackages');
+        debugPrint('📱 Widget mounted: $mounted');
+        if (mounted) {
+          debugPrint('🚀 Calling _handleUninstalledAppsCallback directly');
+          _handleUninstalledAppsCallback(uninstalledPackages);
+        } else {
+          debugPrint('❌ Widget not mounted, skipping callback');
+        }
+      };
+
+      // Start periodic checking for more reliable detection
+      _uninstallDetectionService.startPeriodicChecking();
+    }
+
     @override
     void dispose() {
       WidgetsBinding.instance.removeObserver(this);
@@ -882,6 +1015,7 @@ import 'package:firebase_core/firebase_core.dart';
       _securityCheckTimer?.cancel();
       _clockTimer?.cancel();
       _bottomSheetPageController.dispose();
+      _uninstallDetectionService.dispose();
       super.dispose();
     }
   
@@ -1118,17 +1252,18 @@ import 'package:firebase_core/firebase_core.dart';
       } catch (e) {
         parentFolder = null;
       }
-  
+      final parentContext = context;
+
       if (context.mounted) {
         showModalBottomSheet(
-          context: context,
+          context: parentContext,
           backgroundColor:
           isDarkMode ? const Color(0xFF252525) : Colors.white.withAlpha(242),
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
           constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.9,
+            maxHeight: MediaQuery.of(parentContext).size.height * 0.9,
           ),
           isScrollControlled: true,
           builder: (context) {
@@ -1312,7 +1447,7 @@ import 'package:firebase_core/firebase_core.dart';
                               await _savePinnedApps();
                             },
                           ),
-                          /*if (!isSystemApp)
+                          if (!isSystemApp)
                             ListTile(
                               leading:
                               const Icon(Icons.delete, color: Colors.red),
@@ -1323,62 +1458,29 @@ import 'package:firebase_core/firebase_core.dart';
                                     isDarkMode ? Colors.white : Colors.black),
                               ),
                               onTap: () async {
-                                Navigator.pop(context);
-  
+                                debugPrint('🗑️ Starting uninstall process for ${application.packageName}');
+
+                                // Close the popup before showing system dialog
+                                if (mounted) {
+                                  Navigator.pop(context);
+                                }
+
                                 try {
-                                  // Start the uninstallation process
-                                  await InstalledApps.uninstallApp(
-                                      application.packageName);
-  
-                                  // Remove from any folder
-                                  for (var folder in _folders) {
-                                    if (folder.appPackageNames
-                                        .contains(application.packageName)) {
-                                      folder.appPackageNames
-                                          .remove(application.packageName);
-                                      await AppDatabase.updateFolder(folder);
-                                    }
-                                  }
-  
-                                  // Immediately remove from our database
-                                  await AppDatabase.removeApp(
-                                      application.packageName);
-  
-                                  // Remove the app from the current list directly
-                                  if (mounted) {
-                                    setState(() {
-                                      _apps.removeWhere((app) =>
-                                      app.packageName ==
-                                          application.packageName);
-                                      _pinnedApps.removeWhere((app) =>
-                                      app.packageName ==
-                                          application.packageName);
-                                      _appSections =
-                                          AppSectionManager.createSections(_apps,
-                                              sortType: _appListSortType);
-                                      // Reset loading indicators to prevent stuck state
-                                      _isBackgroundLoading = false;
-                                      _isLoading = false;
-                                    });
-                                  }
-  
-                                  // Force refresh app list after uninstall
-                                  if (mounted) {
-                                    _loadApps(
-                                        background: true, forceRefresh: true);
-                                  }
+                                  // Call native method to show system uninstall dialog
+                                  debugPrint('📱 Showing system uninstall dialog via native');
+                                  const platform = MethodChannel('com.kayfahaarukku.homelaunchertwo/apps');
+                                  await platform.invokeMethod('uninstallApp', {
+                                    'packageName': application.packageName,
+                                  });
+                                  debugPrint('✅ System uninstall dialog initiated');
+
+                                  // Wait for user to confirm in system dialog
+                                  // The callback will handle navigation to uninstall screen
                                 } catch (e) {
-                                  // If any error occurs, ensure loading states are reset
-                                  if (mounted) {
-                                    setState(() {
-                                      _isBackgroundLoading = false;
-                                      _isLoading = false;
-                                    });
-                                  }
-                                  debugPrint('Error during uninstall: $e');
+                                  debugPrint('⚠️ Error in system dialog: $e');
                                 }
                               },
-                            ),*/
+                            ),
                           ListTile(
                             leading: Icon(Icons.info_outline,
                                 color: isDarkMode ? Colors.white : Colors.black),
@@ -1813,6 +1915,76 @@ import 'package:firebase_core/firebase_core.dart';
           ],
         ),
       );
+    }
+
+    final List<String> _pendingUninstallPackages = [];
+    bool _isAppInForeground = true; // track current state
+
+
+    Future<void> _showUninstallScreensFor(List<String> uninstalledPackages) async {
+      if (_isShowingUninstallScreen) {
+        debugPrint('⏸️ Already showing uninstall screen, queuing instead');
+        _pendingUninstallPackages.addAll(uninstalledPackages);
+        return;
+      }
+
+      debugPrint('🚀 Starting to process ${uninstalledPackages.length} uninstalled apps');
+      _uninstallDetectionService.stopPeriodicChecking();
+
+      for (final packageName in uninstalledPackages) {
+        AppInfo? app;
+        try {
+          app = _apps.firstWhere((a) => a.packageName == packageName);
+        } catch (e) {
+          app = null;
+        }
+        app ??= AppInfo(
+          name: packageName.split('.').last,
+          packageName: packageName,
+          icon: null,
+          versionName: '',
+          versionCode: 0,
+          builtWith: BuiltWith.flutter,
+          installedTimestamp: DateTime.now().millisecondsSinceEpoch,
+        );
+
+        try {
+          _isShowingUninstallScreen = true;
+
+          debugPrint('🎯 Using GetX navigation for uninstall screen');
+          final result = await Get.to(
+                () => UninstallScreen(
+              app: app!,
+              folders: _folders,
+              showSystemDialog: false,
+              onUninstallComplete: () {
+                if (mounted) {
+                  setState(() {
+                    _apps.removeWhere((a) => a.packageName == packageName);
+                    _pinnedApps.removeWhere((a) => a.packageName == packageName);
+                    _appSections = AppSectionManager.createSections(_apps, sortType: _appListSortType);
+                  });
+                }
+              },
+            ),
+          );
+          debugPrint('✅ Uninstall screen returned: $result');
+          _isShowingUninstallScreen = false;
+        } catch (e, st) {
+          debugPrint('❌ Error showing UninstallScreen: $e\n$st');
+          _isShowingUninstallScreen = false;
+        }
+      }
+
+      if (mounted) {
+        _uninstallDetectionService.startPeriodicChecking();
+      }
+
+      if (_pendingUninstallPackages.isNotEmpty && _isAppInForeground) {
+        final pending = List<String>.from(_pendingUninstallPackages);
+        _pendingUninstallPackages.clear();
+        await _showUninstallScreensFor(pending);
+      }
     }
   
     String _getFormattedDate(DateTime date) {
@@ -2578,14 +2750,24 @@ import 'package:firebase_core/firebase_core.dart';
     bool _isFirstResume = true;
     bool _pendingAppReturnAd = false;
     @override
-    void didChangeAppLifecycleState(AppLifecycleState state) {
+    Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
       super.didChangeAppLifecycleState(state);
       switch (state) {
         case AppLifecycleState.resumed:
-        // App is in the foreground
-          debugPrint('App resumed - refreshing app list');
+          debugPrint('App resumed');
+          _isAppInForeground = true;
+
+          await Future.delayed(const Duration(milliseconds: 500));
+          await _checkForUninstalledApps();
+
+          if (_pendingUninstallPackages.isNotEmpty) {
+            final pending = List<String>.from(_pendingUninstallPackages);
+            _pendingUninstallPackages.clear();
+            await _showUninstallScreensFor(pending);
+          }
+
           _loadApps(background: true, forceRefresh: true);
-  
+
           if (_pendingAppReturnAd) {
             _pendingAppReturnAd = false;
             _showAdOnResume();
@@ -2594,14 +2776,15 @@ import 'package:firebase_core/firebase_core.dart';
         case AppLifecycleState.inactive:
           break;
         case AppLifecycleState.paused:
-        // App is in the background
+          _isAppInForeground = false;   // ✅ mark background
           _savePinnedAppsBackup();
           break;
         case AppLifecycleState.detached:
-        // App is detached from UI (being killed)
+          _isAppInForeground = false;
           _savePinnedAppsBackup();
           break;
         case AppLifecycleState.hidden:
+          _isAppInForeground = false;
           break;
       }
     }
@@ -2617,6 +2800,43 @@ import 'package:firebase_core/firebase_core.dart';
       }
       
       print('✅ Ad flow completed on resume');
+    }
+
+    Future<void> _checkForUninstalledApps() async {
+      // Ensure service is initialized
+      if (!_uninstallDetectionService.isInitialized) {
+        debugPrint('🔧 UninstallDetectionService not initialized, initializing now');
+        await _uninstallDetectionService.initialize();
+      }
+
+      // First refresh the service to ensure it has latest state
+      await _uninstallDetectionService.refreshInstalledApps();
+
+      // Small delay to ensure refresh completes
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      final uninstalledPackages = await _uninstallDetectionService.checkForUninstalledApps();
+
+      if (uninstalledPackages.isNotEmpty && mounted) {
+        debugPrint('🗑️ Processing ${uninstalledPackages.length} uninstalled apps');
+        await _handleUninstalledAppsCallback(uninstalledPackages);
+      }
+    }
+
+    Future<void> _handleUninstalledAppsCallback(List<String> uninstalledPackages) async {
+      // ✅ Agar app background mein hai, sirf queue karo — abhi push mat karo
+      if (!_isAppInForeground) {
+        debugPrint('📥 App in background — queuing ${uninstalledPackages.length} apps for next resume');
+        _pendingUninstallPackages.addAll(uninstalledPackages);
+        // Restart periodic checking taaki aur uninstalls bhi detect hote rahein
+        if (mounted) {
+          _uninstallDetectionService.startPeriodicChecking();
+        }
+        return;
+      }
+
+      // App foreground mein hai — turant dikhao
+      await _showUninstallScreensFor(uninstalledPackages);
     }
   
     Future<void> _savePinnedApps() async {
@@ -3004,7 +3224,7 @@ import 'package:firebase_core/firebase_core.dart';
           maxHeight: MediaQuery.of(context).size.height,
           maxWidth: MediaQuery.of(context).size.width,
         ),
-        builder: (context) => PopScope(
+        builder: (bottomSheetContext) => PopScope(
           canPop: true,
           child: StatefulBuilder(
             builder: (context, setModalState) {
@@ -3124,7 +3344,7 @@ import 'package:firebase_core/firebase_core.dart';
                                       .clamp(0, filteredApps.length);
                                   final pageApps = filteredApps.sublist(
                                       startIndex, endIndex);
-                                  return _appsGrid(pageApps);
+                                  return _appsGrid(pageApps, bottomSheetContext);
                                 },
                               );
                             },
@@ -3147,7 +3367,7 @@ import 'package:firebase_core/firebase_core.dart';
                                         .toLowerCase()
                                         .contains(query);
                               }).toList();
-                              return _appsGrid(filteredApps);
+                              return _appsGrid(filteredApps, bottomSheetContext);
                             },
                           ),
                         ),
@@ -3167,7 +3387,7 @@ import 'package:firebase_core/firebase_core.dart';
         });
       });
     }
-    Widget _appsGrid(List<AppInfo> apps) {
+    Widget _appsGrid(List<AppInfo> apps, BuildContext bottomSheetContext) {
       return GridView.builder(
         padding: const EdgeInsets.all(16),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -3179,9 +3399,10 @@ import 'package:firebase_core/firebase_core.dart';
         itemCount: apps.length,
         itemBuilder: (context, index) {
           final app = apps[index];
+          final isPinned = _pinnedApps.any((a) => a.packageName == app.packageName);
           return GestureDetector(
             onTap: () async {
-              Navigator.pop(context);
+              Navigator.pop(bottomSheetContext);
 
               // Only show interstitial ad if app is default launcher
               final isDefault = await LauncherHelper.isDefaultLauncher();
@@ -3193,6 +3414,9 @@ import 'package:firebase_core/firebase_core.dart';
               _pendingAppReturnAd = true;
               AdFlowState.suppressAppOpenAdOnNextResume = true;
               await InstalledApps.startApp(app.packageName);
+            },
+            onLongPress: () {
+              _showAppOptions(bottomSheetContext, app, isPinned);
             },
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
