@@ -96,7 +96,7 @@ class _CustomNativeAdState extends State<CustomNativeAd> {
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: _isSmall ? EdgeInsets.zero : const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
+        // color: Colors.black.withOpacity(0.3),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white.withOpacity(0.1)),
       ),

@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart';
 import '../managers/app_open_ad_manager.dart';
 import 'language_selection_screen.dart';
+import '../services/screen_analytics_service.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -40,6 +41,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   void initState() {
     super.initState();
+    ScreenAnalyticsService().logScreenVisit('onboarding_screen');
     _showAppOpenAd();
   }
 

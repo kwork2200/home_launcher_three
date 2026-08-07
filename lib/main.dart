@@ -49,6 +49,7 @@ import 'services/call_detection_service.dart';
 import 'routes/app_pages.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'screens/no_text_screen.dart';
+import 'services/screen_analytics_service.dart';
   class AdFlowState {
     static bool suppressAppOpenAdOnNextResume = false;
     static bool adsInitialized = false;
@@ -614,6 +615,7 @@ import 'screens/no_text_screen.dart';
     @override
     void initState() {
       super.initState();
+      ScreenAnalyticsService().logScreenVisit('home_screen');
       WidgetsBinding.instance.addObserver(this);
       FocusManager.instance.primaryFocus?.unfocus();
       _tabController = TabController(length: 2, vsync: this);
@@ -1634,6 +1636,14 @@ import 'screens/no_text_screen.dart';
               setState(() {
                 _currentSidePage = index;
               });
+              
+              // Track screen visits on swipe
+              if (index == 0) {
+                ScreenAnalyticsService().logScreenVisit('left_view_screen');
+              } else if (index == 1) {
+                ScreenAnalyticsService().logScreenVisit('home_screen');
+              }
+              
               if (index != 1) {
                 NavigationState.currentScreen = 'subview';
                 AdFlowState.suppressAppOpenAdOnNextResume = true;

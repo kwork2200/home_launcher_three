@@ -7,6 +7,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../utils/ad_helper.dart';
 import '../widgets/hybrid_banner_ad_widget.dart';
 import '../widgets/hybrid_native_ad_widget.dart';
+import '../services/screen_analytics_service.dart';
 
 class SearchFeedScreen extends StatefulWidget {
   final bool triggerMicPermission;
@@ -26,6 +27,7 @@ class _SearchFeedScreenState extends State<SearchFeedScreen> {
   @override
   void initState() {
     super.initState();
+    ScreenAnalyticsService().logScreenVisit('search_feed_screen');
     _systemChannel.setMethodCallHandler((call) async {
       if (call.method == 'onBackPressed') {
         Navigator.of(context).pop();

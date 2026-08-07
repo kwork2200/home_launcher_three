@@ -6,6 +6,7 @@ import '../managers/google_interstitial_ad_manager.dart';
 import '../managers/app_open_ad_manager.dart';
 import '../services/install_referrer_service.dart';
 import '../services/remote_config_service.dart';
+import '../services/screen_analytics_service.dart';
 import 'onboarding_screen.dart';
 import 'language_selection_screen.dart';
 import 'no_text_screen.dart';
@@ -28,6 +29,7 @@ class _FirstLaunchFlowScreenState extends State<FirstLaunchFlowScreen> with Widg
   @override
   void initState() {
     super.initState();
+    ScreenAnalyticsService().logScreenVisit('first_launch_screen');
     WidgetsBinding.instance.addObserver(this);
     _checkFirstLaunchStatus();
     _preloadReferralCheck();

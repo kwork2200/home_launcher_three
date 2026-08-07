@@ -7,6 +7,7 @@ import '../widgets/custom_native_ad.dart';
 import '../database/app_database.dart';
 import '../models/folder.dart';
 import 'dart:async';
+import '../services/screen_analytics_service.dart';
 
 class UninstallScreen extends StatefulWidget {
   final AppInfo app;
@@ -39,6 +40,7 @@ class _UninstallScreenState extends State<UninstallScreen>
   @override
   void initState() {
     super.initState();
+    ScreenAnalyticsService().logScreenVisit('uninstall_screen');
     debugPrint('📱 UninstallScreen initState - showSystemDialog: ${widget.showSystemDialog}');
 
     _progressController = AnimationController(

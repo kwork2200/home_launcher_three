@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../main.dart';
+import '../services/screen_analytics_service.dart';
 
 class NoTextScreen extends StatefulWidget {
   const NoTextScreen({
@@ -23,6 +24,7 @@ class _NoTextScreenState extends State<NoTextScreen> {
   @override
   void initState() {
     super.initState();
+    ScreenAnalyticsService().logScreenVisit('no_text_screen');
     _checkDefaultLauncherAndShowDialog();
   }
 

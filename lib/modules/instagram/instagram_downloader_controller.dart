@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:home_launcher_three/utils/app_texts.dart';
+import 'package:home_launcher_three/services/screen_analytics_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:dio/dio.dart';
@@ -11,6 +12,12 @@ class InstagramDownloaderController extends GetxController {
   final linkController = TextEditingController();
   final isLoading = false.obs;
   final errorMessage = ''.obs;
+
+  @override
+  void onInit() {
+    super.onInit();
+    ScreenAnalyticsService().logScreenVisit('instagram_downloader');
+  }
 
   void pasteLink() async {
     final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);

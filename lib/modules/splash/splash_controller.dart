@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:get/get.dart';
 import 'package:home_launcher_three/routes/app_routes.dart';
+import 'package:home_launcher_three/services/screen_analytics_service.dart';
 
 class SplashController extends GetxController {
   Timer? _timer;
@@ -8,6 +9,7 @@ class SplashController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    ScreenAnalyticsService().logScreenVisit('splash_screen');
     _goToHome();
   }
 

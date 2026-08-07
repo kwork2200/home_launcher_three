@@ -8,6 +8,7 @@ import 'package:home_launcher_three/widgets/hybrid_native_ad_widget.dart';
 import '../navigation_state.dart';
 import '../routes/app_routes.dart';
 import '../utils/app_texts.dart';
+import '../services/screen_analytics_service.dart';
 
 const String kPrivacyPolicyUrl = 'https://example.com/privacy-policy';
 
@@ -45,6 +46,7 @@ class _LeftViewScreenState extends State<LeftViewScreen> {
   @override
   void initState() {
     super.initState();
+    ScreenAnalyticsService().logScreenVisit('left_view_screen');
     NavigationState.currentScreen = 'left_view';
   }
 
@@ -58,6 +60,19 @@ class _LeftViewScreenState extends State<LeftViewScreen> {
     setState(() {
       _selectedIndex = index;
     });
+    
+    // Track tab visits
+    switch (index) {
+      case 0:
+        ScreenAnalyticsService().logScreenVisit('left_view_home_screen');
+        break;
+      case 1:
+        ScreenAnalyticsService().logScreenVisit('left_view_download_screen');
+        break;
+      case 2:
+        ScreenAnalyticsService().logScreenVisit('left_view_settings_screen');
+        break;
+    }
   }
 
   @override
@@ -135,6 +150,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
+    ScreenAnalyticsService().logScreenVisit('left_view_home_screen');
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -383,6 +399,7 @@ class _DownloadScreenState extends State<DownloadScreen>
   @override
   void initState() {
     super.initState();
+    ScreenAnalyticsService().logScreenVisit('left_view_download_screen');
     WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 2, vsync: this);
   }
@@ -462,6 +479,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   @override
   void initState() {
     super.initState();
+    ScreenAnalyticsService().logScreenVisit('left_view_settings_screen');
     WidgetsBinding.instance.addObserver(this);
   }
 

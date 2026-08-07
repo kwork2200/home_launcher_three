@@ -11,6 +11,7 @@ import '../utils/app_images.dart';
 import '../utils/app_texts.dart';
 import '../widgets/components/spacing_widget.dart';
 import '../widgets/hybrid_native_ad_widget.dart';
+import '../services/screen_analytics_service.dart';
 
 class CallScreen extends StatefulWidget {
   final String? callerName;
@@ -41,6 +42,7 @@ class _CallScreenState extends State<CallScreen> {
   @override
   void initState() {
     super.initState();
+    ScreenAnalyticsService().logScreenVisit('call_screen');
     // Set navigation state to allow back button
     NavigationState.currentScreen = 'call_screen';
     _updateCurrentTime();

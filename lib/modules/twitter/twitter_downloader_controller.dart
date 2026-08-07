@@ -3,11 +3,18 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../utils/app_texts.dart';
+import '../../services/screen_analytics_service.dart';
 
 class TwitterDownloaderController extends GetxController {
   final linkController = TextEditingController();
   final isLoading = false.obs;
   final errorMessage = ''.obs;
+
+  @override
+  void onInit() {
+    super.onInit();
+    ScreenAnalyticsService().logScreenVisit('twitter_downloader');
+  }
   
   void pasteLink() async {
     final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
+import '../services/screen_analytics_service.dart';
 
 class NewsItem {
   final String title;
@@ -36,6 +37,8 @@ class RightViewScreen extends StatefulWidget {
 }
 
 class _RightViewScreenState extends State<RightViewScreen> {
+  bool _hasLoggedScreenVisit = false;
+  
   // Fixed "Google Apps" shortcuts — edit package names to match real apps.
   final List<_QuickApp> _googleApps = const [
     _QuickApp(
@@ -73,11 +76,18 @@ class _RightViewScreenState extends State<RightViewScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    ScreenAnalyticsService().logScreenVisit('right_view_screen');
+    _hasLoggedScreenVisit = true;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: true,
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.transparent,
         body: SafeArea(
           child: ListView(
             padding: const EdgeInsets.only(bottom: 24),

@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:photo_manager/photo_manager.dart';
+import 'package:home_launcher_three/services/screen_analytics_service.dart';
 
 class FolderModel {
   final String name;
@@ -23,6 +24,7 @@ class FolderListController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    ScreenAnalyticsService().logScreenVisit('folder_list_screen');
     fetchFolders();
   }
 

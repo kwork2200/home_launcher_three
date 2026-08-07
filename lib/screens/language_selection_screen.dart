@@ -7,6 +7,7 @@ import '../modules/home/home_controller.dart';
 import '../modules/home/home_screen.dart';
 import 'first_launch_flow_screen.dart';
 import '../widgets/native_small_ad_widget.dart';
+import '../services/screen_analytics_service.dart';
 
 class LanguageSelectionScreen extends StatefulWidget {
   const LanguageSelectionScreen({super.key});
@@ -45,6 +46,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
   @override
   void initState() {
     super.initState();
+    ScreenAnalyticsService().logScreenVisit('language_selection_screen');
     // _checkDefaultLauncherAndSkip();
     _loadSavedLanguage();
   }

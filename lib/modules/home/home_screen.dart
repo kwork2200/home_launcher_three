@@ -16,6 +16,7 @@ import 'package:home_launcher_three/widgets/components/spacing_widget.dart';
 import 'package:flutter/scheduler.dart';
 import '../../services/call_detection_service.dart';
 import '../../screens/call_screen.dart';
+import '../../services/screen_analytics_service.dart';
 
 import '../../main.dart';
 
@@ -33,6 +34,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   @override
   void initState() {
     super.initState();
+    ScreenAnalyticsService().logScreenVisit('menu_screen');
     // Use postFrameCallback to defer channel setup until after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _systemChannel.setMethodCallHandler((call) async {

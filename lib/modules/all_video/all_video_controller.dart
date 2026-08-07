@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:get/get.dart';
 import 'package:home_launcher_three/modules/all_video/model/all_video_model.dart';
 import 'package:home_launcher_three/modules/all_video/video_controller_interface.dart';
+import 'package:home_launcher_three/services/screen_analytics_service.dart';
 import 'package:photo_manager/photo_manager.dart';
 
 class AllVideoController extends VideoControllerInterface {
@@ -27,6 +28,7 @@ class AllVideoController extends VideoControllerInterface {
   @override
   void onInit() {
     super.onInit();
+    ScreenAnalyticsService().logScreenVisit('all_video_screen');
     fetchVideos();
   }
 
