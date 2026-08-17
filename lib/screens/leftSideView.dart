@@ -499,97 +499,95 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 16),
-            child: Text(
-              'Settings',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: kTextPrimary,
-              ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 16),
+          child: Text(
+            'Settings',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: kTextPrimary,
             ),
           ),
-          const SizedBox(height: 16),
-          ListTile(
-            leading: Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
-                color: Color(0xFF4CAF50),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.privacy_tip_outlined,
-                color: Colors.white,
-                size: 18,
-              ),
+        ),
+        const SizedBox(height: 16),
+        ListTile(
+          leading: Container(
+            width: 36,
+            height: 36,
+            decoration: const BoxDecoration(
+              color: Color(0xFF4CAF50),
+              shape: BoxShape.circle,
             ),
-            title: const Text(
-              'Privacy Policy',
-              style: TextStyle(fontSize: 15, color: kTextPrimary),
+            child: const Icon(
+              Icons.privacy_tip_outlined,
+              color: Colors.white,
+              size: 18,
             ),
-            trailing: Icon(Icons.chevron_right, color: Colors.grey[400]),
-            onTap: () {
-              _launchUrl(kPrivacyPolicyUrl);
-            },
           ),
-          const SizedBox(height: 16),
-          ListTile(
-            leading: Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
-                color: Color(0xFF4CAF50),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.privacy_tip_outlined,
-                color: Colors.white,
-                size: 18,
-              ),
-            ),
-            title: const Text(
-              'Team and Condition',
-              style: TextStyle(fontSize: 15, color: kTextPrimary),
-            ),
-            trailing: Icon(Icons.chevron_right, color: Colors.grey[400]),
-            onTap: () {
-              _launchUrl(kTeamAndConditionyUrl);
-            },
+          title: const Text(
+            'Privacy Policy',
+            style: TextStyle(fontSize: 15, color: kTextPrimary),
           ),
-          const SizedBox(height: 12),
+          trailing: Icon(Icons.chevron_right, color: Colors.grey[400]),
+          onTap: () {
+            _launchUrl(kPrivacyPolicyUrl);
+          },
+        ),
+        const SizedBox(height: 16),
+        ListTile(
+          leading: Container(
+            width: 36,
+            height: 36,
+            decoration: const BoxDecoration(
+              color: Color(0xFF4CAF50),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.privacy_tip_outlined,
+              color: Colors.white,
+              size: 18,
+            ),
+          ),
+          title: const Text(
+            'Team and Condition',
+            style: TextStyle(fontSize: 15, color: kTextPrimary),
+          ),
+          trailing: Icon(Icons.chevron_right, color: Colors.grey[400]),
+          onTap: () {
+            _launchUrl(kTeamAndConditionyUrl);
+          },
+        ),
+        const SizedBox(height: 12),
 
-          const Center(
-            child: Text(
-              'Version: 1.19',
-              style: TextStyle(fontSize: 13, color: Colors.black54),
-            ),
+        const Center(
+          child: Text(
+            'Version: 1.19',
+            style: TextStyle(fontSize: 13, color: Colors.black54),
           ),
-          const SizedBox(height: 16),
+        ),
+        const SizedBox(height: 16),
 
-          // Native Ad at top center
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: HybridNativeAdWidget(
-              height: 250,
-            ),
+        // Native Ad at top center
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: HybridNativeAdWidget(
+            height: 250,
           ),
-          const SizedBox(height: 50),
+        ),
+        const SizedBox(height: 50),
 
-          // Small Native Ad at bottom
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: HybridNativeAdWidget(
-              height: 220,
-            ),
+        // Small Native Ad at bottom
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: HybridNativeAdWidget(
+            height: 220,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
