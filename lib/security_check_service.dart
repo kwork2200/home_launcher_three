@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 
 class SecurityCheckService {
-  static const _channel = MethodChannel('com.example.allhdvideos/security');
+  static const _channel = MethodChannel('com.hdvideos.allhdvideos/security');
 
   static Future<Map<String, bool>> checkSecurityStatus() async {
     try {

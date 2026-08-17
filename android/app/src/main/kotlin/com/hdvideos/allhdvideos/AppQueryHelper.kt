@@ -1,4 +1,4 @@
-package com.example.allhdvideos
+package com.hdvideos.allhdvideos
 
 import android.content.Context
 import android.content.Intent
@@ -22,7 +22,7 @@ object AppQueryHelper {
         
         // Get all activities that can handle the launcher intent
         val activities = pm.queryIntentActivities(intent, flags)
-            .filter { it.activityInfo.packageName != "com.example.allhdvideos" }
+            .filter { it.activityInfo.packageName != "com.hdvideos.allhdvideos" }
         
         // For Xiaomi/MIUI devices, also check for dual apps
         if (isMIUI()) {
@@ -31,7 +31,7 @@ object AppQueryHelper {
             dualAppIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             
             val dualApps = pm.queryIntentActivities(dualAppIntent, flags)
-                .filter { it.activityInfo.packageName != "com.example.allhdvideos" }
+                .filter { it.activityInfo.packageName != "com.hdvideos.allhdvideos" }
             
             // Combine regular and dual apps, removing duplicates based on component name
             return (activities + dualApps).distinctBy { 

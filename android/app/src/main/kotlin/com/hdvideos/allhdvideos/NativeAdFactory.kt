@@ -1,4 +1,4 @@
-package com.example.allhdvideos
+package com.hdvideos.allhdvideos
 
 import android.content.Context
 import android.view.LayoutInflater

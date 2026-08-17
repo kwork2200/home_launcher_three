@@ -12,7 +12,7 @@ class FbAdService {
   }
 
   bool _isInitialized = false;
-  static const platform = MethodChannel('com.example.allhdvideos/facebook_ads');
+  static const platform = MethodChannel('com.hdvideos.allhdvideos/facebook_ads');
   
   // Completer to track interstitial ad dismissal
   Completer<void>? _interstitialDismissCompleter;

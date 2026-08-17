@@ -1,4 +1,4 @@
-package com.example.allhdvideos
+package com.hdvideos.allhdvideos
 
 import android.content.BroadcastReceiver
 import android.content.Context
