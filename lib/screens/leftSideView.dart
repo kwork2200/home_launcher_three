@@ -11,6 +11,7 @@ import '../utils/app_texts.dart';
 import '../services/screen_analytics_service.dart';
 
 const String kPrivacyPolicyUrl = 'https://example.com/privacy-policy';
+const String kTeamAndConditionyUrl = 'https://docs.google.com/document/d/1x7AZ3ZyWw7J_EidQxqDu_VA46_7BC8EwYnkk2XyX1h4/edit?usp=sharing';
 
 Future<void> _launchUrl(String urlString) async {
   final Uri url = Uri.parse(urlString);
@@ -21,8 +22,8 @@ Future<void> _launchUrl(String urlString) async {
 
 const Color kBackground = Colors.white;
 const Color kTextPrimary = Colors.black;
-const Color kTextSecondary = Color(0xFF616161); // grey[700]-ish, for subtitles
-const Color kBorder = Color(0xFFE0E0E0); // grey[300]
+const Color kTextSecondary = Color(0xFF616161);
+const Color kBorder = Color(0xFFE0E0E0);
 const Color kCardFill = Color(0xFFF5F5F5);
 const Color kRed = Color(0xFFE53935);
 
@@ -533,6 +534,30 @@ class _SettingsScreenState extends State<SettingsScreen>
             trailing: Icon(Icons.chevron_right, color: Colors.grey[400]),
             onTap: () {
               _launchUrl(kPrivacyPolicyUrl);
+            },
+          ),
+          const SizedBox(height: 16),
+          ListTile(
+            leading: Container(
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: Color(0xFF4CAF50),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.privacy_tip_outlined,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+            title: const Text(
+              'Team and Condition',
+              style: TextStyle(fontSize: 15, color: kTextPrimary),
+            ),
+            trailing: Icon(Icons.chevron_right, color: Colors.grey[400]),
+            onTap: () {
+              _launchUrl(kTeamAndConditionyUrl);
             },
           ),
           const SizedBox(height: 12),

@@ -69,7 +69,6 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
             (route) => false,
       );
     } else {
-      // Show system dialog to set as default launcher
       debugPrint("🏠 Not default launcher - showing system dialog");
       setState(() => _isLauncherDialogOpen = true);
       await LauncherHelper.requestSetAsDefaultLauncher();

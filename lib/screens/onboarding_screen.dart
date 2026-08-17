@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:home_launcher_three/utils/app_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../main.dart';
 import '../managers/app_open_ad_manager.dart';
 import 'language_selection_screen.dart';
@@ -50,6 +52,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     print('🎯 Onboarding screen opened, showing AppOpenAd');
     await Future.delayed(const Duration(milliseconds: 500));
     AppOpenAdManager.instance.showAdIfAvailable();
+  }
+
+  Future<void> _launchURL(String urlString) async {
+    final Uri url = Uri.parse(urlString);
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open the link')),
+        );
+      }
+    }
   }
 
   void _onPageChanged(int page) {
@@ -199,7 +212,45 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        TextButton(
+                          onPressed: () {
+                            _launchURL('https://docs.google.com/document/d/1rX1aEp02HLPpNx52SOR1IXy0ssFX-12elOD5XvJhp0o/edit?usp=sharing');
+                          },
+                          child: const Text(
+                            'About Us',
+                            style: TextStyle(
+                              color:AppColors.infoBlue,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                                decoration: TextDecoration.underline,
+                                decorationColor: AppColors.infoBlue
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            _launchURL('https://docs.google.com/document/d/1kXfyQ34M_dN9UkDvezlO2cLqJMCiGikDUQWQ6253HW8/edit?usp=sharing');
+                          },
+                          child:  Text(
+                            'Contact Us',
+                            style: TextStyle(
+                              color: AppColors.infoBlue,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              decoration: TextDecoration.underline,
+                              decorationColor: AppColors.infoBlue
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                 ],
               ),
               if (_isProcessing)

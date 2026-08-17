@@ -10,23 +10,24 @@ class RemoteConfigService {
 
   late FirebaseRemoteConfig _remoteConfig;
   bool _isInitialized = false;
-  
+
   final _configUpdateController = StreamController<void>.broadcast();
-  
+
   /// Stream that emits whenever Remote Config is updated
   Stream<void> get configUpdates => _configUpdateController.stream;
 
   static const Map<String, dynamic> _defaults = {
     'show_banner_ads': true,
     'show_native_ads': true,
-    
+    'show_app_open_ads': true,
+
     'show_fb_banner_ads': true,
     'show_fb_native_ads': true,
-    
+
     'show_third_party_banner_ads': true,
     'show_third_party_native_ads': true,
     'third_party_ad_url': 'http://1261.mark.qureka.com/',
-    
+
     'show_third_party_interstitial_ads': true,
     'show_interstitial_ads': true,
     'show_fb_interstitial_ads': true,
@@ -36,7 +37,7 @@ class RemoteConfigService {
     'android_fb_banner_ad_id': 'IMG_16_9_APP_INSTALL#YOUR_PLACEMENT_ID',
     'android_fb_interstitial_ad_id': 'VID_HD_16_9_46S_APP_INSTALL#YOUR_PLACEMENT_ID',
     'android_fb_native_ad_id': 'IMG_16_9_APP_INSTALL#YOUR_PLACEMENT_ID',
-    
+
     // Screen visibility flags
     'show_onboarding': true,
     'show_language_screen': true,
@@ -60,7 +61,7 @@ class RemoteConfigService {
       await _remoteConfig.setDefaults(_defaults);
 
       await _remoteConfig.fetchAndActivate();
-      
+
       _remoteConfig.onConfigUpdated.listen((event) async {
         await _remoteConfig.activate();
 
@@ -74,7 +75,7 @@ class RemoteConfigService {
       print('⚠️ Using default values');
     }
   }
-  
+
   /// Start periodic fetching to detect changes quickly
   Timer? _fetchTimer;
   void _startPeriodicFetch() {
@@ -112,7 +113,7 @@ class RemoteConfigService {
       return false;
     }
   }
-  
+
   /// Clean up resources
   void dispose() {
     _fetchTimer?.cancel();
@@ -314,6 +315,16 @@ class RemoteConfigService {
     } catch (e) {
       print('⚠️ Error getting show_home_page: $e');
       return _defaults['show_home_page'] as bool;
+    }
+  }
+
+  /// Check if app open ads should be shown
+  bool get shouldShowAppOpenAds {
+    try {
+      return _remoteConfig.getBool('show_app_open_ads');
+    } catch (e) {
+      print('⚠️ Error getting show_app_open_ads: $e');
+      return _defaults['show_app_open_ads'] as bool;
     }
   }
 }

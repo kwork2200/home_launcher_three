@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../services/ad_service.dart';
+import '../services/remote_config_service.dart';
 
 /// Manager for Google App Open Ads
 /// Shows ads when user returns to the app from another app
@@ -17,6 +18,11 @@ class AppOpenAdManager {
 
   /// Load an App Open Ad
   Future<void> loadAd() async {
+    if (!RemoteConfigService.instance.shouldShowAppOpenAds) {
+      print('⏭️ App Open Ads disabled in Remote Config');
+      return;
+    }
+    
     if (_isLoadingAd || _appOpenAd != null) return;
 
     _isLoadingAd = true;
@@ -56,6 +62,11 @@ class AppOpenAdManager {
 
   /// Show App Open Ad if available
   Future<void> showAdIfAvailable() async {
+    if (!RemoteConfigService.instance.shouldShowAppOpenAds) {
+      print('⏭️ App Open Ads disabled in Remote Config');
+      return;
+    }
+    
     if (_isShowingAd) {
       print('⏭️ App Open Ad already showing');
       return;
@@ -106,6 +117,11 @@ class AppOpenAdManager {
 
   /// Show App Open Ad for first launch (prevents duplicate calls)
   Future<void> showFirstLaunchAd() async {
+    if (!RemoteConfigService.instance.shouldShowAppOpenAds) {
+      print('⏭️ App Open Ads disabled in Remote Config');
+      return;
+    }
+    
     if (_hasShownFirstLaunchAd) {
       print('⏭️ First launch ad already shown, skipping');
       return;
