@@ -64,7 +64,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _changeWallpaper(BuildContext context) async {
     try {
-      const platform = MethodChannel('com.kayfahaarukku.homelauncherthree/system');
+      const platform = MethodChannel('com.example.allhdvideos/system');
       await platform.invokeMethod('changeWallpaper');
     } catch (e) {
       if (context.mounted) {

@@ -17,7 +17,7 @@ class _LifecycleObserver with WidgetsBindingObserver {
 
 class CallDetectionService {
   static const MethodChannel _callEventChannel = 
-      MethodChannel('com.kayfahaarukku.homelauncherthree/call_events');
+      MethodChannel('com.example.allhdvideos/call_events');
   
   static final CallDetectionService _instance = CallDetectionService._internal();
   factory CallDetectionService() => _instance;

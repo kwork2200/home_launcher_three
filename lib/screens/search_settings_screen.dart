@@ -19,7 +19,7 @@ class SearchFeedScreen extends StatefulWidget {
 }
 
 class _SearchFeedScreenState extends State<SearchFeedScreen> {
-  static const _systemChannel = MethodChannel('com.kayfahaarukku.homelauncherthree/system');
+  static const _systemChannel = MethodChannel('com.example.allhdvideos/system');
   final TextEditingController _searchController = TextEditingController();
   WebViewController? _webViewController;
   bool _showSearchResults = false;

@@ -1,4 +1,4 @@
-package com.kayfahaarukku.homelauncherthree
+package com.example.allhdvideos
 
 import android.content.BroadcastReceiver
 import android.content.Context

@@ -419,50 +419,52 @@ class _DownloadScreenState extends State<DownloadScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        TabBar(
-          controller: _tabController,
-          labelColor: kTextSecondary,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: kRed,
-          tabs: const [
-            Tab(text: 'Downloads'),
-            Tab(text: 'History'),
-          ],
-        ),
-        Expanded(
-          child: TabBarView(
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          TabBar(
             controller: _tabController,
-            children: [
-              // Downloads tab
-              const Center(
-                child: Text('No downloads yet'),
-              ),
-              // History tab
-              const Center(
-                child: Text('No history yet'),
-              ),
+            labelColor: kTextSecondary,
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: kRed,
+            tabs: const [
+              Tab(text: 'Downloads'),
+              Tab(text: 'History'),
             ],
           ),
-        ),
-        // Native Ad at top center
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: HybridNativeAdWidget(
-            height: 250,
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                // Downloads tab
+                const Center(
+                  child: Text('No downloads yet'),
+                ),
+                // History tab
+                const Center(
+                  child: Text('No history yet'),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 50),
+          // Native Ad at top center
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: HybridNativeAdWidget(
+              height: 250,
+            ),
+          ),
+          const SizedBox(height: 50),
 
-        // Small Native Ad at bottom
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: HybridNativeAdWidget(
-            height: 220,
+          // Small Native Ad at bottom
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: HybridNativeAdWidget(
+              height: 220,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

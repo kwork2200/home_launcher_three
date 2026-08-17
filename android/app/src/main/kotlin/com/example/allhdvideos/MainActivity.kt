@@ -1,4 +1,4 @@
-package com.kayfahaarukku.homelauncherthree
+package com.example.allhdvideos
 
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
@@ -66,10 +66,10 @@ fun android.graphics.drawable.Drawable.toBitmap(): Bitmap {
 }
 
 class MainActivity: FlutterFragmentActivity() {
-    private val CHANNEL = "com.kayfahaarukku.homelauncherthree/widgets"
-    private val FB_ADS_CHANNEL = "com.kayfahaarukku.homelauncherthree/facebook_ads"
-    private val INSTALL_REFERRER_CHANNEL = "com.kayfahaarukku.homelauncherthree/install_referrer"
-    private val CALL_EVENTS_CHANNEL = "com.kayfahaarukku.homelauncherthree/call_events"
+    private val CHANNEL = "com.example.allhdvideos/widgets"
+    private val FB_ADS_CHANNEL = "com.example.allhdvideos/facebook_ads"
+    private val INSTALL_REFERRER_CHANNEL = "com.example.allhdvideos/install_referrer"
+    private val CALL_EVENTS_CHANNEL = "com.example.allhdvideos/call_events"
     private val REQUEST_PICK_APPWIDGET = 9
     private val REQUEST_CREATE_APPWIDGET = 5
     private val APPWIDGET_HOST_ID = 442
@@ -159,7 +159,7 @@ class MainActivity: FlutterFragmentActivity() {
     }
 
     private fun handleUninstallIntent(intent: Intent?) {
-        if (intent?.action == "com.kayfahaarukku.homelauncherthree.ACTION_SHOW_UNINSTALL") {
+        if (intent?.action == "com.example.allhdvideos.ACTION_SHOW_UNINSTALL") {
             val packageName = intent.getStringExtra("uninstalled_package")
             if (packageName != null) {
                 Log.d("MainActivity", "📢 External uninstall detected: $packageName")
@@ -177,7 +177,7 @@ class MainActivity: FlutterFragmentActivity() {
                 "packageName" to pkg,
                 "initialRoute" to initialRouteValue
             )
-            MethodChannel(messenger, "com.kayfahaarukku.homelauncherthree/apps")
+            MethodChannel(messenger, "com.example.allhdvideos/apps")
                 .invokeMethod("onExternalAppUninstalled", args)
             pendingUninstalledPackage = null
             Log.d("MainActivity", "✅ Sent to Flutter: $pkg with route: $initialRouteValue")
@@ -258,7 +258,7 @@ class MainActivity: FlutterFragmentActivity() {
                 Log.d("MainActivity", "Package to uninstall: $packageName")
                 currentUninstallingPackage = null
                 flutterEngine?.dartExecutor?.binaryMessenger?.let { messenger ->
-                    MethodChannel(messenger, "com.kayfahaarukku.homelauncherthree/apps").invokeMethod("onUninstallComplete", packageName)
+                    MethodChannel(messenger, "com.example.allhdvideos/apps").invokeMethod("onUninstallComplete", packageName)
                 }
             }
         } else if (resultCode == RESULT_CANCELED) {
@@ -534,7 +534,7 @@ class MainActivity: FlutterFragmentActivity() {
             }
         }
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.kayfahaarukku.homelauncherthree/apps")
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.example.allhdvideos/apps")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "getApps" -> {
@@ -658,7 +658,7 @@ class MainActivity: FlutterFragmentActivity() {
                 }
             }
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.kayfahaarukku.homelauncherthree/notifications")
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.example.allhdvideos/notifications")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "requestNotificationAccess" -> {
@@ -689,14 +689,14 @@ class MainActivity: FlutterFragmentActivity() {
             }
 
         NotificationListener.addListener { packageName, isPosted ->
-            MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.kayfahaarukku.homelauncherthree/notifications")
+            MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.example.allhdvideos/notifications")
                 .invokeMethod(
                     if (isPosted) "onNotificationPosted" else "onNotificationRemoved",
                     mapOf("packageName" to packageName)
                 )
         }
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.kayfahaarukku.homelauncherthree/system")
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.example.allhdvideos/system")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "changeWallpaper" -> {
@@ -712,7 +712,7 @@ class MainActivity: FlutterFragmentActivity() {
                 }
             }
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.kayfahaarukku.homelauncherthree/launcher")
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.example.allhdvideos/launcher")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "openHomeSettings" -> {
@@ -760,7 +760,7 @@ class MainActivity: FlutterFragmentActivity() {
             }
 
         // Security check channel
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.kayfahaarukku.homelauncherthree/security")
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.example.allhdvideos/security")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "checkSecurityStatus" -> {
@@ -1071,7 +1071,7 @@ class MainActivity: FlutterFragmentActivity() {
             super.onBackPressed()
             return
         }
-        val channel = MethodChannel(messenger, "com.kayfahaarukku.homelauncherthree/system")
+        val channel = MethodChannel(messenger, "com.example.allhdvideos/system")
         channel.invokeMethod("getNavigationState", null, object : MethodChannel.Result {
             override fun success(result: Any?) {
                 when (result as? String) {

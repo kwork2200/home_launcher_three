@@ -31,7 +31,7 @@ class WidgetInfo {
 
 class WidgetManager {
   static const platform =
-      MethodChannel('com.kayfahaarukku.homelauncherthree/widgets');
+      MethodChannel('com.example.allhdvideos/widgets');
 
   static Future<List<WidgetInfo>> getAvailableWidgets() async {
     try {
