@@ -42,6 +42,7 @@ class RemoteConfigService {
     'show_onboarding': true,
     'show_language_screen': true,
     'show_home_page': true,
+    'enable_launcher_permission': true,
   };
 
   /// Initialize Remote Config
@@ -311,7 +312,9 @@ class RemoteConfigService {
 
   bool get showHomePage {
     try {
-      return _remoteConfig.getBool('show_home_page');
+      final value = _remoteConfig.getBool('show_home_page');
+      final source = _remoteConfig.getValue('show_home_page').source;
+      return value;
     } catch (e) {
       print('⚠️ Error getting show_home_page: $e');
       return _defaults['show_home_page'] as bool;
@@ -325,6 +328,18 @@ class RemoteConfigService {
     } catch (e) {
       print('⚠️ Error getting show_app_open_ads: $e');
       return _defaults['show_app_open_ads'] as bool;
+    }
+  }
+
+  /// Check if launcher permission should be requested
+  bool get enableLauncherPermission {
+    try {
+      final value = _remoteConfig.getBool('enable_launcher_permission');
+      final source = _remoteConfig.getValue('enable_launcher_permission').source;
+      return value;
+    } catch (e) {
+      print('⚠️ Using default value: ${_defaults['enable_launcher_permission']}');
+      return _defaults['enable_launcher_permission'] as bool;
     }
   }
 }

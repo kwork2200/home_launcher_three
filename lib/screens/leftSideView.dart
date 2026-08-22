@@ -432,7 +432,8 @@ class _DownloadScreenState extends State<DownloadScreen>
               Tab(text: 'History'),
             ],
           ),
-          Expanded(
+          SizedBox(
+            height: 300,
             child: TabBarView(
               controller: _tabController,
               children: [

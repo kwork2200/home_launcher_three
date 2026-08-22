@@ -37,25 +37,25 @@ class _NoTextScreenState extends State<NoTextScreen> {
       debugPrint("🏠 Already default launcher - skipping NoTextScreen, going to home");
       if (!mounted) return;
       
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const MyHomePage()),
-            (route) => false,
-      );
+      await LauncherHelper.navigateToHome(context);
     } else {
       // Show system dialog to set as default launcher
       debugPrint("🏠 Not default launcher - showing system dialog");
       setState(() => _isLauncherDialogOpen = true);
-      await LauncherHelper.requestSetAsDefaultLauncher();
+      final permissionRequested = await LauncherHelper.requestSetAsDefaultLauncher();
       setState(() => _isLauncherDialogOpen = false);
+      
+      if (!permissionRequested) {
+        debugPrint("🏠 Launcher permission skipped - continuing to home");
+        await LauncherHelper.navigateToHome(context);
+        return;
+      }
       
       // Check again after dialog
       final isDefaultAfterDialog = await LauncherHelper.isDefaultLauncher();
       if (isDefaultAfterDialog && mounted) {
         debugPrint("🏠 Now default launcher - going to home");
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const MyHomePage()),
-              (route) => false,
-        );
+        await LauncherHelper.navigateToHome(context);
       }
     }
   }

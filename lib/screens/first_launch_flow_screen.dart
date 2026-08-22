@@ -157,18 +157,7 @@ class _FirstLaunchFlowScreenState extends State<FirstLaunchFlowScreen> with Widg
       final isReferralUser = _isReferralUserCache ?? await InstallReferrerService.isReferralUser();
       debugPrint("🏠 Navigating to actual home screen. Is referral user: $isReferralUser");
       
-      Navigator.of(context).pushAndRemoveUntil(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => isReferralUser 
-              ? const MainMenuScreen() 
-              : const MyHomePage(),
-          transitionDuration: const Duration(milliseconds: 200),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
-        (route) => false,
-      );
+      await LauncherHelper.navigateToHome(context, isReferralUser: isReferralUser);
     }
   }
 

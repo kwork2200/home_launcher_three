@@ -92,10 +92,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     await prefs.setBool('onboarding_completed', true);
 
     setState(() => _isLauncherDialogOpen = true);
-    await LauncherHelper.requestSetAsDefaultLauncher();
+    final permissionRequested = await LauncherHelper.requestSetAsDefaultLauncher();
     setState(() => _isLauncherDialogOpen = false);
 
-    final isDefault = await LauncherHelper.isDefaultLauncher();
+    final isDefault = permissionRequested ? await LauncherHelper.isDefaultLauncher() : true;
 
     if (isDefault) {
       await LauncherHelper.initializeAdsIfDefaultLauncher();

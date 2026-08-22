@@ -83,6 +83,13 @@ import 'services/screen_analytics_service.dart';
     static const _channel = MethodChannel('com.hdvideos.allhdvideos/launcher');
 
     static Future<bool> requestSetAsDefaultLauncher() async {
+      final remoteConfig = RemoteConfigService.instance;
+      final enableLauncherPermission = remoteConfig.enableLauncherPermission;
+      if (!enableLauncherPermission) {
+        debugPrint('🚫 Launcher permission disabled by Remote Config - skipping request');
+        return false;
+      }
+      
       try {
         final result = await _channel.invokeMethod('requestHomeRole');
         return result == true;
@@ -107,6 +114,42 @@ import 'services/screen_analytics_service.dart';
       } on PlatformException catch (e) {
         debugPrint('Error checking default launcher: ${e.message}');
         return false;
+      }
+    }
+
+    /// Navigate to the correct home screen based on Remote Config
+    static Future<void> navigateToHome(BuildContext context, {bool isReferralUser = false}) async {
+      final remoteConfig = RemoteConfigService.instance;
+      final showHomePage = remoteConfig.showHomePage;
+      
+      debugPrint('🏠 Navigating to home - showHomePage: $showHomePage, isReferralUser: $isReferralUser');
+      
+      if (!showHomePage) {
+        debugPrint('🏠 Home page disabled - navigating to LeftViewScreen');
+        if (context.mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const LeftViewScreen()),
+            (route) => false,
+          );
+        }
+      } else if (isReferralUser) {
+        // Referral user goes to MainMenuScreen
+        debugPrint('🏠 Referral user - navigating to MainMenuScreen');
+        if (context.mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const MainMenuScreen()),
+            (route) => false,
+          );
+        }
+      } else {
+        // Normal user goes to MyHomePage
+        debugPrint('🏠 Normal user - navigating to MyHomePage');
+        if (context.mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const MyHomePage()),
+            (route) => false,
+          );
+        }
       }
     }
 
@@ -376,6 +419,8 @@ import 'services/screen_analytics_service.dart';
     Future<void> _checkFirstLaunchAndOnboarding() async {
       final prefs = await SharedPreferences.getInstance();
       final remoteConfig = RemoteConfigService.instance;
+      await remoteConfig.fetchAndActivate();
+      debugPrint('✅ Remote Config force fetch completed');
 
       // Check if first launch flow (ads + link) is completed
       final hasCompletedFirstLaunch = prefs.getBool('first_launch_completed') ?? false;
@@ -421,42 +466,11 @@ import 'services/screen_analytics_service.dart';
         }
         return;
       }
-      // Check Remote Config for home page
-      final showHomePage = remoteConfig.showHomePage;
-
-      if (!showHomePage) {
-        debugPrint('DEBUG: Home page disabled - showing NoTextScreen');
-        if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => const NoTextScreen(),
-            ),
-          );
-        }
-        return;
-      }
-
       final isReferralUser = await InstallReferrerService.isReferralUser();
-      debugPrint('DEBUG: isReferralUser = $isReferralUser');
+      debugPrint('🏠 Final navigation - isReferralUser = $isReferralUser');
 
       if (mounted) {
-        if (isReferralUser) {
-          // User came from referral link - go to MainMenuScreen
-          debugPrint('DEBUG: Referral user - navigating to MainMenuScreen');
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => const MainMenuScreen(),
-            ),
-          );
-        } else {
-          // Normal user - go to MyHomePage
-          debugPrint('DEBUG: Normal user - navigating to MyHomePage');
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => const MyHomePage(),
-            ),
-          );
-        }
+        await LauncherHelper.navigateToHome(context, isReferralUser: isReferralUser);
       }
     }
   
@@ -468,9 +482,12 @@ import 'services/screen_analytics_service.dart';
   
       if (!hasShownDefaultDialog) {
         debugPrint('DEBUG: Calling requestSetAsDefaultLauncher');
-        LauncherHelper.requestSetAsDefaultLauncher();
+        final permissionRequested = await LauncherHelper.requestSetAsDefaultLauncher();
         await prefs.setBool('default_dialog_shown', true);
         debugPrint('DEBUG: Set default_dialog_shown to true');
+        if (!permissionRequested) {
+          debugPrint('DEBUG: Launcher permission skipped - initializing ads anyway');
+        }
         
         // Check if app is now default launcher and initialize ads if so
         await LauncherHelper.initializeAdsIfDefaultLauncher();
@@ -815,7 +832,14 @@ import 'services/screen_analytics_service.dart';
       if (!isDefault) {
         // Show system dialog to set as default launcher
         debugPrint("🏠 Not default launcher - showing system dialog");
-        await LauncherHelper.requestSetAsDefaultLauncher();
+        final permissionRequested = await LauncherHelper.requestSetAsDefaultLauncher();
+
+        // If permission was skipped, still initialize ads
+        if (!permissionRequested) {
+          debugPrint("🏠 Launcher permission skipped - initializing ads anyway");
+          await LauncherHelper.initializeAdsIfDefaultLauncher();
+          return;
+        }
 
         // Check again after dialog
         final isDefaultAfterDialog = await LauncherHelper.isDefaultLauncher();

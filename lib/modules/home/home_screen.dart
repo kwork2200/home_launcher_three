@@ -50,18 +50,9 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     });
   }
 
-  void _goToMyHomePage() {
+  void _goToMyHomePage() async {
     if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const MyHomePage(),
-        transitionDuration: const Duration(milliseconds: 200),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-      ),
-          (route) => false,
-    );
+    await LauncherHelper.navigateToHome(context);
   }
 
   @override

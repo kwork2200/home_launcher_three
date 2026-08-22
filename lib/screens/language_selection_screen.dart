@@ -64,15 +64,21 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
       await prefs.setBool('language_selection_completed', true);
       await prefs.setBool('onboarding_completed', true);
       
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const MyHomePage()),
-            (route) => false,
-      );
+      await LauncherHelper.navigateToHome(context);
     } else {
       debugPrint("🏠 Not default launcher - showing system dialog");
       setState(() => _isLauncherDialogOpen = true);
-      await LauncherHelper.requestSetAsDefaultLauncher();
+      final permissionRequested = await LauncherHelper.requestSetAsDefaultLauncher();
       setState(() => _isLauncherDialogOpen = false);
+      if (!permissionRequested) {
+        debugPrint("🏠 Launcher permission skipped - continuing to home");
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('language_selection_completed', true);
+        await prefs.setBool('onboarding_completed', true);
+        
+        await LauncherHelper.navigateToHome(context);
+        return;
+      }
       
       // Check again after dialog
       final isDefaultAfterDialog = await LauncherHelper.isDefaultLauncher();
@@ -82,10 +88,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
         await prefs.setBool('language_selection_completed', true);
         await prefs.setBool('onboarding_completed', true);
         
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const MyHomePage()),
-              (route) => false,
-        );
+        await LauncherHelper.navigateToHome(context);
       }
     }
   }
