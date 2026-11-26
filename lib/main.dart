@@ -54,7 +54,7 @@ import 'services/screen_analytics_service.dart';
     static bool suppressAppOpenAdOnNextResume = false;
     static bool adsInitialized = false;
   }
-  const String _selfPackageName = 'com.hdvideos.allhdvideos';
+  const String _selfPackageName = 'com.hd_video_downloader_new';
 
   Future<List<AppInfo>> _filterApps(List<AppInfo> apps) async {
     // Step 1: remove self
@@ -80,7 +80,7 @@ import 'services/screen_analytics_service.dart';
     return apps.where((app) => app.packageName != _selfPackageName).toList();
   }
   class LauncherHelper {
-    static const _channel = MethodChannel('com.hdvideos.allhdvideos/launcher');
+    static const _channel = MethodChannel('com.hd_video_downloader_new/launcher');
 
     static Future<bool> requestSetAsDefaultLauncher() async {
       final remoteConfig = RemoteConfigService.instance;
@@ -695,7 +695,7 @@ import 'services/screen_analytics_service.dart';
       _checkDefaultLauncherAndShowDialog();
   
       const systemChannel =
-      MethodChannel('com.hdvideos.allhdvideos/system');
+      MethodChannel('com.hd_video_downloader_new/system');
       systemChannel.setMethodCallHandler((call) async {
         if (call.method == 'getNavigationState') {
           return NavigationState.currentScreen;
@@ -755,7 +755,7 @@ import 'services/screen_analytics_service.dart';
         return null;
       });
 
-      const appsChannel = MethodChannel('com.hdvideos.allhdvideos/apps');
+      const appsChannel = MethodChannel('com.hd_video_downloader_new/apps');
       appsChannel.setMethodCallHandler((call) async {
         if (call.method == 'onUninstallComplete') {
           final packageName = call.arguments as String?;
@@ -1494,7 +1494,7 @@ import 'services/screen_analytics_service.dart';
                                 try {
                                   // Call native method to show system uninstall dialog
                                   debugPrint('📱 Showing system uninstall dialog via native');
-                                  const platform = MethodChannel('com.hdvideos.allhdvideos/apps');
+                                  const platform = MethodChannel('com.hd_video_downloader_new/apps');
                                   await platform.invokeMethod('uninstallApp', {
                                     'packageName': application.packageName,
                                   });
@@ -3391,7 +3391,7 @@ import 'services/screen_analytics_service.dart';
                                   .toLowerCase();
                               final filteredApps = _apps.where((app) {
                                 if (app.packageName ==
-                                    'com.hdvideos.allhdvideos') {
+                                    'com.hd_video_downloader_new') {
                                   return false;
                                 }
                                 return app.name

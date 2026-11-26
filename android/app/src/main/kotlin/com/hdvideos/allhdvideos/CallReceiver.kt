@@ -1,4 +1,4 @@
-package com.hdvideos.allhdvideos
+package com.hd_video_downloader_new
 
 import android.content.BroadcastReceiver
 import android.content.Context

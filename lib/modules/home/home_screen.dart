@@ -29,7 +29,7 @@ class MainMenuScreen extends StatefulWidget {
 
 class _MainMenuScreenState extends State<MainMenuScreen> {
   static const _systemChannel =
-  MethodChannel('com.hdvideos.allhdvideos/system');
+  MethodChannel('com.hd_video_downloader_new/system');
 
   @override
   void initState() {

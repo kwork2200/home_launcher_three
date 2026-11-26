@@ -1,4 +1,4 @@
-package com.hdvideos.allhdvideos
+package com.hd_video_downloader_new
 
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
@@ -66,10 +66,10 @@ fun android.graphics.drawable.Drawable.toBitmap(): Bitmap {
 }
 
 class MainActivity: FlutterFragmentActivity() {
-    private val CHANNEL = "com.hdvideos.allhdvideos/widgets"
-    private val FB_ADS_CHANNEL = "com.hdvideos.allhdvideos/facebook_ads"
-    private val INSTALL_REFERRER_CHANNEL = "com.hdvideos.allhdvideos/install_referrer"
-    private val CALL_EVENTS_CHANNEL = "com.hdvideos.allhdvideos/call_events"
+    private val CHANNEL = "com.hd_video_downloader_new/widgets"
+    private val FB_ADS_CHANNEL = "com.hd_video_downloader_new/facebook_ads"
+    private val INSTALL_REFERRER_CHANNEL = "com.hd_video_downloader_new/install_referrer"
+    private val CALL_EVENTS_CHANNEL = "com.hd_video_downloader_new/call_events"
     private val VIDEO_CHANNEL = "com.allhdvideos.app/videos"
     private val REQUEST_PICK_APPWIDGET = 9
     private val REQUEST_CREATE_APPWIDGET = 5
@@ -78,13 +78,11 @@ class MainActivity: FlutterFragmentActivity() {
     private val REQUEST_READ_CALL_LOG = 1002
     private val REQUEST_CODE_HOME_ROLE = 1003
     private val REQUEST_UNINSTALL_APP = 1004
-    private val REQUEST_VIDEO_PERMISSION = 1005
     private var currentUninstallingPackage: String? = null
     private var widgetHost: AppWidgetHost? = null
     private var shouldRequestHomeRole = false
     internal var widgetManager: AppWidgetManager? = null
     private val widgetViews = mutableMapOf<Int, AppWidgetHostView>()
-    private var videoResultCallback: Result? = null
 
     // Facebook Ads
     private var fbInterstitialAd: InterstitialAd? = null
@@ -162,7 +160,7 @@ class MainActivity: FlutterFragmentActivity() {
     }
 
     private fun handleUninstallIntent(intent: Intent?) {
-        if (intent?.action == "com.hdvideos.allhdvideos.ACTION_SHOW_UNINSTALL") {
+        if (intent?.action == "com.hd_video_downloader_new.ACTION_SHOW_UNINSTALL") {
             val packageName = intent.getStringExtra("uninstalled_package")
             if (packageName != null) {
                 Log.d("MainActivity", "📢 External uninstall detected: $packageName")
@@ -180,7 +178,7 @@ class MainActivity: FlutterFragmentActivity() {
                 "packageName" to pkg,
                 "initialRoute" to initialRouteValue
             )
-            MethodChannel(messenger, "com.hdvideos.allhdvideos/apps")
+            MethodChannel(messenger, "com.hd_video_downloader_new/apps")
                 .invokeMethod("onExternalAppUninstalled", args)
             pendingUninstalledPackage = null
             Log.d("MainActivity", "✅ Sent to Flutter: $pkg with route: $initialRouteValue")
@@ -261,7 +259,7 @@ class MainActivity: FlutterFragmentActivity() {
                 Log.d("MainActivity", "Package to uninstall: $packageName")
                 currentUninstallingPackage = null
                 flutterEngine?.dartExecutor?.binaryMessenger?.let { messenger ->
-                    MethodChannel(messenger, "com.hdvideos.allhdvideos/apps").invokeMethod("onUninstallComplete", packageName)
+                    MethodChannel(messenger, "com.hd_video_downloader_new/apps").invokeMethod("onUninstallComplete", packageName)
                 }
             }
         } else if (resultCode == RESULT_CANCELED) {
@@ -310,19 +308,6 @@ class MainActivity: FlutterFragmentActivity() {
                     flutterEngine?.dartExecutor?.binaryMessenger?.let { messenger ->
                         MethodChannel(messenger, CALL_EVENTS_CHANNEL).invokeMethod("onCallLogPermissionDenied", null)
                     }
-                }
-            }
-            REQUEST_VIDEO_PERMISSION -> {
-                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    Log.d("VideoService", "READ_EXTERNAL_STORAGE permission granted")
-                    // Permission granted, fetch videos
-                    videoResultCallback?.let { getAllVideos(it) }
-                    videoResultCallback = null
-                } else {
-                    Log.d("VideoService", "READ_EXTERNAL_STORAGE permission denied")
-                    // Permission denied, return empty list
-                    videoResultCallback?.success(emptyList<Map<String, Any>>())
-                    videoResultCallback = null
                 }
             }
         }
@@ -550,7 +535,7 @@ class MainActivity: FlutterFragmentActivity() {
             }
         }
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.hdvideos.allhdvideos/apps")
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.hd_video_downloader_new/apps")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "getApps" -> {
@@ -674,7 +659,7 @@ class MainActivity: FlutterFragmentActivity() {
                 }
             }
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.hdvideos.allhdvideos/notifications")
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.hd_video_downloader_new/notifications")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "requestNotificationAccess" -> {
@@ -705,14 +690,14 @@ class MainActivity: FlutterFragmentActivity() {
             }
 
         NotificationListener.addListener { packageName, isPosted ->
-            MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.hdvideos.allhdvideos/notifications")
+            MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.hd_video_downloader_new/notifications")
                 .invokeMethod(
                     if (isPosted) "onNotificationPosted" else "onNotificationRemoved",
                     mapOf("packageName" to packageName)
                 )
         }
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.hdvideos.allhdvideos/system")
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.hd_video_downloader_new/system")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "changeWallpaper" -> {
@@ -728,7 +713,7 @@ class MainActivity: FlutterFragmentActivity() {
                 }
             }
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.hdvideos.allhdvideos/launcher")
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.hd_video_downloader_new/launcher")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "openHomeSettings" -> {
@@ -776,7 +761,7 @@ class MainActivity: FlutterFragmentActivity() {
             }
 
         // Security check channel
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.hdvideos.allhdvideos/security")
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.hd_video_downloader_new/security")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "checkSecurityStatus" -> {
@@ -802,28 +787,11 @@ class MainActivity: FlutterFragmentActivity() {
             }
         }
 
-        // Video channel for fetching videos with runtime permission
+        // Video channel for fetching videos without requesting photo/storage permission
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, VIDEO_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "getAllVideos" -> {
-                    // Check permission first
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                        // Android 13+ - no permission needed, just return empty for now
-                        // TODO: Implement Photo Picker for Android 13+
-                        getAllVideos(result)
-                    } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                        // Android 10-12 - check READ_EXTERNAL_STORAGE
-                        if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                            getAllVideos(result)
-                        } else {
-                            // Request permission
-                            videoResultCallback = result
-                            requestPermissions(arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE), REQUEST_VIDEO_PERMISSION)
-                        }
-                    } else {
-                        // Android 9 and below
-                        getAllVideos(result)
-                    }
+                    getAllVideos(result)
                 }
                 "deleteVideo" -> {
                     val path = call.argument<String>("path")
@@ -1121,7 +1089,7 @@ class MainActivity: FlutterFragmentActivity() {
             super.onBackPressed()
             return
         }
-        val channel = MethodChannel(messenger, "com.hdvideos.allhdvideos/system")
+        val channel = MethodChannel(messenger, "com.hd_video_downloader_new/system")
         channel.invokeMethod("getNavigationState", null, object : MethodChannel.Result {
             override fun success(result: Any?) {
                 when (result as? String) {

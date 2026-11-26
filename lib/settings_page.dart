@@ -64,7 +64,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _changeWallpaper(BuildContext context) async {
     try {
-      const platform = MethodChannel('com.hdvideos.allhdvideos/system');
+      const platform = MethodChannel('com.hd_video_downloader_new/system');
       await platform.invokeMethod('changeWallpaper');
     } catch (e) {
       if (context.mounted) {

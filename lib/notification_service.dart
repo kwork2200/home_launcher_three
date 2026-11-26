@@ -4,7 +4,7 @@ import 'dart:async';
 
 class NotificationService {
   static const platform =
-      MethodChannel('com.hdvideos.allhdvideos/notifications');
+      MethodChannel('com.hd_video_downloader_new/notifications');
   static final Map<String, int> _notificationCounts = {};
   static final _controller = StreamController<Map<String, int>>.broadcast();
 

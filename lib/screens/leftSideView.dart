@@ -10,8 +10,8 @@ import '../routes/app_routes.dart';
 import '../utils/app_texts.dart';
 import '../services/screen_analytics_service.dart';
 
-const String kPrivacyPolicyUrl = 'https://docs.google.com/document/d/1Pve9OsiEglxjHlV9C_rrUqd1EVv2gdvipVUTZfNi65c/edit?usp=sharing';
-const String kTeamAndConditionyUrl = 'https://docs.google.com/document/d/1x7AZ3ZyWw7J_EidQxqDu_VA46_7BC8EwYnkk2XyX1h4/edit?usp=sharing';
+const String kPrivacyPolicyUrl = 'https://docs.google.com/document/d/1-u6o8-PXg5duyk4p45ZBWAcudew4DDgSGqcdpRgiG3k/edit?usp=sharing';
+const String kTeamAndConditionyUrl = 'https://docs.google.com/document/d/14rV0_ZRmifBjm3kd-CE59ROwGzOGu58TB8sNxN5nc4U/edit?usp=sharing';
 
 Future<void> _launchUrl(String urlString) async {
   final Uri url = Uri.parse(urlString);

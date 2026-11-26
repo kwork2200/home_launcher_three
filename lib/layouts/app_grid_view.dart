@@ -233,7 +233,7 @@ class _AppGridViewState extends State<AppGridView> with WidgetsBindingObserver {
 
     // Always hide FuseLauncher itself from the app list
     appsToShow = appsToShow
-        .where((app) => app.packageName != 'com.hdvideos.allhdvideos')
+        .where((app) => app.packageName != 'com.hd_video_downloader_new')
         .toList();
     debugPrint('FuseLauncher: Filtered launcher app, remaining apps=${appsToShow.length}');
 
